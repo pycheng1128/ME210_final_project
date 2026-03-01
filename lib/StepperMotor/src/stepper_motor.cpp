@@ -1,12 +1,10 @@
 #include <Arduino.h>
 #include "pin_map.h"
+#include "stepper_config.h"
 #include "stepper_motor.h"
 
 // Private namespace
 namespace {
-
-// Non-blocking step interval. Tune this for your driver/mechanics.
-constexpr unsigned long kStepIntervalUs = 2000UL;
 
 struct Runtime {
   bool active = false;
@@ -20,18 +18,18 @@ struct Runtime {
 
 Runtime g_rt;
 
-// conterclockwise if clockwise == true, else CCW
+// clockwise if clockwise == true, else CCW
 void setDirection(bool clockwise) {
-  digitalWrite(Pins::DIR_PIN, clockwise ? HIGH : LOW);
+  digitalWrite(STEPPER_DIR_PIN, clockwise ? HIGH : LOW);
 }
 
 }  // namespace
 
 void initStepperMotor() {
-  pinMode(Pins::STEP_PIN, OUTPUT);
-  pinMode(Pins::DIR_PIN, OUTPUT);
+  pinMode(STEPPER_STEP_PIN, OUTPUT);
+  pinMode(STEPPER_DIR_PIN, OUTPUT);
 
-  digitalWrite(Pins::STEP_PIN, LOW);
+  digitalWrite(STEPPER_STEP_PIN, LOW);
   setDirection(true);
 }
 
@@ -50,7 +48,7 @@ void startStepperLaunchCycle(bool clockwise, uint16_t steps) {
   g_rt.last_toggle_us = micros();
 
   setDirection(clockwise);
-  digitalWrite(Pins::STEP_PIN, LOW); // STEP_PIN starts as LOW
+  digitalWrite(STEPPER_STEP_PIN, LOW); // STEP_PIN starts as LOW
 }
 
 void updateStepperMotor() {
@@ -60,9 +58,8 @@ void updateStepperMotor() {
   }
 
   // check if stepper active time exceeds predefined limit
-  // replace the functionality of delayMicroseconds()
   const unsigned long now_us = micros();
-  if ((now_us - g_rt.last_toggle_us) < kStepIntervalUs) {
+  if ((now_us - g_rt.last_toggle_us) < STEPPER_STEP_INTERVAL_US) {
     return;
   }
   // update time
@@ -70,12 +67,12 @@ void updateStepperMotor() {
 
   // if STEP PIN is low, toggle to high
   if (!g_rt.step_pin_high) {
-    digitalWrite(Pins::STEP_PIN, HIGH);
+    digitalWrite(STEPPER_STEP_PIN, HIGH);
     g_rt.step_pin_high = true;
     return;
   }
 
-  digitalWrite(Pins::STEP_PIN, LOW);
+  digitalWrite(STEPPER_STEP_PIN, LOW);
   g_rt.step_pin_high = false;
   g_rt.steps_done++;
 
@@ -101,5 +98,5 @@ bool checkStepperLaunchCycleComplete() {
 
 void stopStepperMotor() {
   g_rt.active = false;
-  digitalWrite(Pins::STEP_PIN, LOW);
+  digitalWrite(STEPPER_STEP_PIN, LOW);
 }

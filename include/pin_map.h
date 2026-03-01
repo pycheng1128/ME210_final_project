@@ -1,35 +1,106 @@
-#pragma once
+/**
+ * @file pin_map.h
+ * @brief Centralized pin map for the entire ME210 Final Project
+ *        (Arduino Mega 2560)
+ *
+ * Every subsystem's GPIO assignments live here so that pin conflicts
+ * are easy to spot and resolve.  All modules should #include this
+ * file instead of hard-coding pin numbers.
+ *
+ * ┌───────────────────────────────────────────────────────────────────┐
+ * │                      PIN ASSIGNMENT SUMMARY                      │
+ * ├──────────────┬──────────────────────────────────┬────────────────┤
+ * │  Subsystem   │  Function                        │  Pin(s)        │
+ * ├──────────────┼──────────────────────────────────┼────────────────┤
+ * │  Mobility    │  Motor 1 IN1/IN2                 │  D22, D23      │
+ * │              │  Motor 2 IN1/IN2                 │  D24, D25      │
+ * │              │  Motor 3 IN1/IN2                 │  D26, D27      │
+ * │              │  Motor 4 IN1/IN2                 │  D28, D29      │
+ * │              │  Motor 1-4 ENA (PWM)             │  D4–D7         │
+ * │              │  Encoder 1-4 A (INT)             │  D18–D21       │
+ * │              │  Encoder 1-4 B                   │  D30–D33       │
+ * │              │  E-Stop                          │  D42           │
+ * ├──────────────┼──────────────────────────────────┼────────────────┤
+ * │  USS         │  Left-Front  Trig / Echo         │  D34, D35      │
+ * │              │  Left-Rear   Trig / Echo         │  D36, D37      │
+ * │              │  Front       Trig / Echo         │  D38, D39      │
+ * ├──────────────┼──────────────────────────────────┼────────────────┤
+ * │  Line Sensor │  IR Left / Left2 / Mid / R2 / R │  A0–A4         │
+ * ├──────────────┼──────────────────────────────────┼────────────────┤
+ * │  Stepper     │  STEP / DIR                      │  D8, D9        │
+ * └──────────────┴──────────────────────────────────┴────────────────┘
+ *
+ * Notes:
+ *   - Mega interrupt pins: 2, 3, 18, 19, 20, 21
+ *   - Mega PWM pins:       2–13, 44–46
+ *   - Analog pins:         A0–A15  (also digital 54–69)
+ */
+
+#ifndef PIN_MAP_H
+#define PIN_MAP_H
 
 #include <Arduino.h>
 
-// Shared hardware pin map for the whole project.
-// constexpr: compile-time constant, immutable
-namespace Pins {
+/* =====================================================================
+ *  MOBILITY — 4× DC Motor + Encoder + E-Stop
+ * ===================================================================== */
 
-// Ultrasonic sensors (Arduino Mega digital pins).
-constexpr uint8_t kUssLeftFrontTrig = 22;
-constexpr uint8_t kUssLeftFrontEcho = 23;
+#define MOB_NUM_MOTORS          4
 
-constexpr uint8_t kUssLeftRearTrig = 24;
-constexpr uint8_t kUssLeftRearEcho = 25;
+/* Motor Driver Direction (IN1 / IN2) */
+#define MOB_DRIVER_1_IN1        22      /* Motor 1 — U1-A */
+#define MOB_DRIVER_1_IN2        23
+#define MOB_DRIVER_2_IN1        24      /* Motor 2 — U1-B */
+#define MOB_DRIVER_2_IN2        25
+#define MOB_DRIVER_3_IN1        26      /* Motor 3 — U2-A */
+#define MOB_DRIVER_3_IN2        27
+#define MOB_DRIVER_4_IN1        28      /* Motor 4 — U2-B */
+#define MOB_DRIVER_4_IN2        29
 
-constexpr uint8_t kUssFrontTrig = 26;
-constexpr uint8_t kUssFrontEcho = 27;
+/* Motor Driver PWM / Enable (ENA) — must be PWM-capable */
+#define MOB_DRIVER_1_ENA        4
+#define MOB_DRIVER_2_ENA        5
+#define MOB_DRIVER_3_ENA        6
+#define MOB_DRIVER_4_ENA        7
 
-// Stepper motor pins
-constexpr uint8_t STEP_PIN = 4;
-constexpr uint8_t DIR_PIN = 5;
+/* Encoder A — interrupt-capable (ISR pulse counting) */
+#define MOB_MOTOR_1_ENCA        18
+#define MOB_MOTOR_2_ENCA        19
+#define MOB_MOTOR_3_ENCA        20
+#define MOB_MOTOR_4_ENCA        21
 
-// Line sensor pins
-constexpr uint8_t irPinsLeft = 8;
-constexpr uint8_t irPinsLeft2 = 9;
-constexpr uint8_t irPinsMiddle = 10;
-constexpr uint8_t irPinsRight2 = 11;
-constexpr uint8_t irPinsRight = 12;
+/* Encoder B — digital input (direction sensing) */
+#define MOB_MOTOR_1_ENCB        30
+#define MOB_MOTOR_2_ENCB        31
+#define MOB_MOTOR_3_ENCB        32
+#define MOB_MOTOR_4_ENCB        33
 
-// Add motor / launcher / line-sensor pins below as modules are implemented.
+/* E-Stop (active LOW, internal pull-up) */
+#define MOB_ESTOP_PIN           42
 
+/* =====================================================================
+ *  ULTRASONIC SENSORS (USS) — 3× HC-SR04
+ * ===================================================================== */
+#define USS_LEFT_FRONT_TRIG     34      /* TODO: verify with wiring */
+#define USS_LEFT_FRONT_ECHO     35
+#define USS_LEFT_REAR_TRIG      36
+#define USS_LEFT_REAR_ECHO      37
+#define USS_FRONT_TRIG          38
+#define USS_FRONT_ECHO          39
 
-// constexpr uint8_t kMotorLeftPwm = ...;
+/* =====================================================================
+ *  LINE SENSOR — 5-channel IR reflectance array
+ * ===================================================================== */
+#define IR_PIN_LEFT             A0      /* leftmost sensor */
+#define IR_PIN_LEFT2            A1
+#define IR_PIN_MIDDLE           A2
+#define IR_PIN_RIGHT2           A3
+#define IR_PIN_RIGHT            A4      /* rightmost sensor */
 
-}  // namespace Pins
+/* =====================================================================
+ *  STEPPER MOTOR — A4988 / DRV8825 style driver
+ * ===================================================================== */
+#define STEPPER_STEP_PIN        8       /* TODO: verify with wiring */
+#define STEPPER_DIR_PIN         9
+
+#endif  /* PIN_MAP_H */

@@ -1,14 +1,15 @@
 #include <Arduino.h>
 #include "pin_map.h"
+#include "line_sensor_config.h"
 
 namespace {
 
-constexpr uint8_t kLinePins[5] = {
-  Pins::irPinsLeft,
-  Pins::irPinsLeft2,
-  Pins::irPinsMiddle,
-  Pins::irPinsRight2,
-  Pins::irPinsRight
+const uint8_t kLinePins[LINE_SENSOR_COUNT] = {
+  IR_PIN_LEFT,
+  IR_PIN_LEFT2,
+  IR_PIN_MIDDLE,
+  IR_PIN_RIGHT2,
+  IR_PIN_RIGHT
 };
 
 // Cached 5-bit sensor pattern.
@@ -20,7 +21,7 @@ uint8_t sampleLineMask5b() {
   uint8_t mask = 0; // start with 0b00000
 
   // Convert 5 digital reads into a compact bit-mask.
-  for (uint8_t i = 0; i < 5; ++i) {
+  for (uint8_t i = 0; i < LINE_SENSOR_COUNT; ++i) {
     const uint8_t bit_index = 4 - i;
     const bool is_black = (digitalRead(kLinePins[i]) == HIGH);
     if (is_black) {
@@ -34,7 +35,7 @@ uint8_t sampleLineMask5b() {
 }  // namespace
 
 void initLineSensor() {
-  for (uint8_t i = 0; i < 5; ++i) {
+  for (uint8_t i = 0; i < LINE_SENSOR_COUNT; ++i) {
     pinMode(kLinePins[i], INPUT);
   }
 
@@ -44,15 +45,10 @@ void initLineSensor() {
 
 void updateLineSensor() {
   // Read all 5 sensors and update one cached value.
-  // Why this exists:
-  // 1) Ensures all checks in one loop use the same sensor snapshot.
-  // 2) Avoids repeated digitalRead calls when multiple modules ask for line data.
-  // 3) Keeps state_machine/navigation logic deterministic per loop cycle.
   g_line_mask_5b = sampleLineMask5b();
 }
 
 // Return the latest cached 5-bit line pattern.
-// Call updateLineSensor() once each loop before using this.
 uint8_t lineMask5b() {
   return g_line_mask_5b;
 }

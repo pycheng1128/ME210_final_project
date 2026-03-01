@@ -1,0 +1,8 @@
+{
+  "name": "MobilitySystem",
+  "version": "1.0.0",
+  "description": "4-motor PI speed control with quadrature encoders, deadzone compensation, and E-Stop support for Arduino Mega.",
+  "keywords": "motor, mobility, pid, encoder, arduino-mega",
+  "frameworks": "arduino",
+  "platforms": "atmelavr"
+}

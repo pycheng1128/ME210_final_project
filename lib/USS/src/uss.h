@@ -1,6 +1,6 @@
 #pragma once
 
-// Ultrasonic sensor module API (matches current src/uss.cpp).
+#include <Arduino.h>
 
 void initUss();
 void updateUss();
