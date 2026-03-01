@@ -21,13 +21,13 @@
  * │              │  Encoder 1-4 B                   │  D30–D33       │
  * │              │  E-Stop                          │  D42           │
  * ├──────────────┼──────────────────────────────────┼────────────────┤
- * │  USS         │  Left-Front  Trig / Echo         │  D34, D35      │
- * │              │  Left-Rear   Trig / Echo         │  D36, D37      │
- * │              │  Front       Trig / Echo         │  D38, D39      │
+ * │  Stepper     │  STEP / DIR                      │  D34, D35      │
+ * ├──────────────┼──────────────────────────────────┼────────────────┤
+ * │  USS         │  Ultra 1  Trig / Echo            │  D36, D37      │
+ * │              │  Ultra 2  Trig / Echo            │  D38, D39      │
+ * │              │  Ultra 3  Trig / Echo            │  D40, D41      │
  * ├──────────────┼──────────────────────────────────┼────────────────┤
  * │  Line Sensor │  IR Left / Left2 / Mid / R2 / R │  A0–A4         │
- * ├──────────────┼──────────────────────────────────┼────────────────┤
- * │  Stepper     │  STEP / DIR                      │  D8, D9        │
  * └──────────────┴──────────────────────────────────┴────────────────┘
  *
  * Notes:
@@ -81,12 +81,12 @@
 /* =====================================================================
  *  ULTRASONIC SENSORS (USS) — 3× HC-SR04
  * ===================================================================== */
-#define USS_LEFT_FRONT_TRIG     34      /* TODO: verify with wiring */
-#define USS_LEFT_FRONT_ECHO     35
-#define USS_LEFT_REAR_TRIG      36
-#define USS_LEFT_REAR_ECHO      37
-#define USS_FRONT_TRIG          38
-#define USS_FRONT_ECHO          39
+#define USS_LEFT_FRONT_TRIG     36      /* Ultra 1 */
+#define USS_LEFT_FRONT_ECHO     37
+#define USS_LEFT_REAR_TRIG      38      /* Ultra 2 */
+#define USS_LEFT_REAR_ECHO      39
+#define USS_FRONT_TRIG          40      /* Ultra 3 */
+#define USS_FRONT_ECHO          41
 
 /* =====================================================================
  *  LINE SENSOR — 5-channel IR reflectance array
@@ -100,7 +100,7 @@
 /* =====================================================================
  *  STEPPER MOTOR — A4988 / DRV8825 style driver
  * ===================================================================== */
-#define STEPPER_STEP_PIN        8       /* TODO: verify with wiring */
-#define STEPPER_DIR_PIN         9
+#define STEPPER_STEP_PIN        34
+#define STEPPER_DIR_PIN         35
 
 #endif  /* PIN_MAP_H */
