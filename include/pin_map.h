@@ -27,7 +27,7 @@
  * │              │  Ultra 2  Trig / Echo            │  D38, D39      │
  * │              │  Ultra 3  Trig / Echo            │  D40, D41      │
  * ├──────────────┼──────────────────────────────────┼────────────────┤
- * │  Line Sensor │  IR Left / Left2 / Mid / R2 / R │  A0–A4         │
+ * │  Line Sensor │  IR Ch1–Ch5                     │  A1–A5         │
  * └──────────────┴──────────────────────────────────┴────────────────┘
  *
  * Notes:
@@ -91,11 +91,11 @@
 /* =====================================================================
  *  LINE SENSOR — 5-channel IR reflectance array
  * ===================================================================== */
-#define IR_PIN_LEFT             A0      /* leftmost sensor */
-#define IR_PIN_LEFT2            A1
-#define IR_PIN_MIDDLE           A2
-#define IR_PIN_RIGHT2           A3
-#define IR_PIN_RIGHT            A4      /* rightmost sensor */
+#define IR_PIN_LEFT             A1      /* IR Channel 1 — leftmost */
+#define IR_PIN_LEFT2            A2      /* IR Channel 2 */
+#define IR_PIN_MIDDLE           A3      /* IR Channel 3 */
+#define IR_PIN_RIGHT2           A4      /* IR Channel 4 */
+#define IR_PIN_RIGHT            A5      /* IR Channel 5 — rightmost */
 
 /* =====================================================================
  *  STEPPER MOTOR — A4988 / DRV8825 style driver
