@@ -1,12 +1,19 @@
 #include <Arduino.h>
 #include <TimerInterrupt.h>
-#include "state_machine.cpp"
+#include <uss.h>
+#include <stepper_motor.h>
+#include <state_machine.h>
 
 // put function declarations here:
 int myFunction(int, int);
 
 void setup() {
+  Serial.begin(9600);
 
+  
+  initUss();
+  initStepperMotor();
+  initLineSensor();
   initStateMachine());
 }
 

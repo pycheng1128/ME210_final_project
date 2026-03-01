@@ -1,8 +1,11 @@
 #include <Arduino.h>
+#include <uss.h>
+#include <stepper_motor.h>
+#include <line_sensor.h>
 
-// Private to only this file state_machine.cpp
 namespace {
 
+// must write RobotState::...
 enum class RobotState : uint8_t {
   IDLE_FOR_LOADING = 0,
   TURN_ALIGN_TO_LEFT_WALL,
@@ -13,13 +16,11 @@ enum class RobotState : uint8_t {
   FAULT
 };
 
-struct StateMachineConfig {
-  unsigned long load_idle_ms = 10000UL;
-  unsigned long state_timeout_ms = 12000UL;
-
-  // Keep this below 0.5 cm as requested.
-  float left_uss_match_tol_cm = 0.4f;
-};
+constexpr unsigned long kLoadIdleMs = 10000UL;
+constexpr unsigned long kStateTimeoutMs = 12000UL;
+constexpr float kLeftUssMatchToleranceCm = 0.4f;  // Keep below 0.5 cm.
+constexpr uint16_t kLaunchCycleSteps = 200;
+constexpr bool kLaunchClockwise = true;
 
 struct SensorFrame {
   // Ultrasonic readings in cm.
@@ -41,8 +42,6 @@ struct Runtime {
   unsigned long state_enter_ms = 0UL;
 };
 
-// Create StateMachineConfig and Runtime instances
-StateMachineConfig g_cfg;
 Runtime g_rt;
 
 const char* toString(RobotState s) {
@@ -58,13 +57,14 @@ const char* toString(RobotState s) {
   }
 }
 
+// const SensorFrame& in: pass by original object, not a copy
 bool isParallelToLeftWall(const SensorFrame& in) {
   const float left_diff = fabsf(in.left_uss_front_cm - in.left_uss_back_cm);
-  return left_diff <= g_cfg.left_uss_match_tol_cm;
+  return left_diff <= kLeftUssMatchToleranceCm;
 }
 
 bool isCenteredOnMiddleLine(const SensorFrame& in) {
-  // Accept thick-tape pattern around center as requested.
+  // Accept both narrow and thick center-line patterns.
   return (in.line_mask_5b == 0b00100) || (in.line_mask_5b == 0b01110);
 }
 
@@ -73,18 +73,35 @@ bool isAtHogLine(const SensorFrame& in) {
   return in.line_mask_5b == 0b11111;
 }
 
-bool timedOut(unsigned long now_ms) {
-  return (now_ms - g_rt.state_enter_ms) > g_cfg.state_timeout_ms;
-}
-
 SensorFrame readSensors() {
   SensorFrame in{};
-  // TODO(sensor module): populate ultrasonic and line data here.
+
+  // USS snapshot.
+  in.left_uss_front_cm = ussLeftFrontCm();
+  in.left_uss_back_cm = ussLeftRearCm();
+  in.front_uss_cm = ussFrontCm();
+
+  // Line sensor snapshot.
+  in.line_mask_5b = lineMask5b();
+
+  // Stepper launch completion event (one-shot).
+  in.launch_cycle_complete = checkStepperLaunchCycleComplete();
+
   // TODO(command module): populate stop command and end-zone status.
+  // TODO(navigation/localization module): populate end_zone_reached.
   return in;
 }
 
-void enterState(RobotState next, unsigned long now_ms) {
+unsigned long stateElapsedMs(unsigned long now_ms) {
+  return now_ms - g_rt.state_enter_ms;
+}
+
+bool stateTimedOut(unsigned long now_ms) {
+  return stateElapsedMs(now_ms) > kStateTimeoutMs;
+}
+
+void setState(RobotState next, unsigned long now_ms) {
+  // return void if target state is the same as current state
   if (next == g_rt.state) {
     return;
   }
@@ -93,31 +110,6 @@ void enterState(RobotState next, unsigned long now_ms) {
 
   Serial.print(F("[FSM] Enter -> "));
   Serial.println(toString(g_rt.state));
-}
-
-void cmdStopAllMotion() {
-  // TODO(navigation/motor module): stop all drivetrain outputs.
-}
-
-void cmdTurnAlignCounterClockwise() {
-  // TODO(navigation module): counter-clockwise turning command.
-  // Keep turning until parallel-to-left-wall guard is true.
-}
-
-void cmdShiftRightWithParallelHold() {
-  // TODO(navigation module): shift right while maintaining wall parallelism.
-}
-
-void cmdForwardWithLineTracking() {
-  // TODO(navigation module): move forward and keep center line tracked.
-}
-
-void cmdLaunch() {
-  // TODO(launcher module): fire one cycle.
-}
-
-void cmdReturnToEndZone() {
-  // TODO(navigation module): navigate back to starting end zone for reload.
 }
 
 }  // namespace
@@ -132,84 +124,97 @@ void initStateMachine() {
 
 void updateStateMachine() {
   const unsigned long now_ms = millis();
+
+  // Refresh sensor modules once per loop.
+  updateUss();
+  updateLineSensor();
+
+  // Run stepper non-blocking update each loop.
+  updateStepperMotor();
+
   const SensorFrame in = readSensors();
 
-  // Global safety / override transitions.
+  // Global overrides.
   if (in.stop_commanded) {
-    cmdStopAllMotion();
-    enterState(RobotState::IDLE_FOR_LOADING, now_ms);
+    // TODO(navigation/motor): stop all motion.
+    stopStepperMotor();
+    setState(RobotState::IDLE_FOR_LOADING, now_ms);
     return;
   }
-  if (timedOut(now_ms)) {
-    cmdStopAllMotion();
-    enterState(RobotState::FAULT, now_ms);
+  if (stateTimedOut(now_ms)) {
+    // TODO(navigation/motor): stop all motion.
+    stopStepperMotor();
+    setState(RobotState::FAULT, now_ms);
     return;
   }
 
   switch (g_rt.state) {
     case RobotState::IDLE_FOR_LOADING: {
-      cmdStopAllMotion();
-      if ((now_ms - g_rt.state_enter_ms) >= g_cfg.load_idle_ms) {
-        enterState(RobotState::TURN_ALIGN_TO_LEFT_WALL, now_ms);
+      // TODO(navigation/motor): stop all motion.
+      if (stateElapsedMs(now_ms) >= kLoadIdleMs) {
+        setState(RobotState::TURN_ALIGN_TO_LEFT_WALL, now_ms);
       }
       break;
     }
 
     case RobotState::TURN_ALIGN_TO_LEFT_WALL: {
-      cmdTurnAlignCounterClockwise();
+      // TODO(navigation): turn counter-clockwise until aligned.
       if (isParallelToLeftWall(in)) {
-        enterState(RobotState::SHIFT_RIGHT_TO_CENTER_LINE, now_ms);
+        setState(RobotState::SHIFT_RIGHT_TO_CENTER_LINE, now_ms);
       }
       break;
     }
 
     case RobotState::SHIFT_RIGHT_TO_CENTER_LINE: {
-      cmdShiftRightWithParallelHold();
+      // TODO(navigation): shift right while holding parallel orientation.
 
       // Constantly enforce parallel orientation.
       if (!isParallelToLeftWall(in)) {
-        enterState(RobotState::TURN_ALIGN_TO_LEFT_WALL, now_ms);
+        setState(RobotState::TURN_ALIGN_TO_LEFT_WALL, now_ms);
         break;
       }
       if (isCenteredOnMiddleLine(in)) {
-        enterState(RobotState::MOVE_FORWARD_TO_HOG_LINE, now_ms);
+        setState(RobotState::MOVE_FORWARD_TO_HOG_LINE, now_ms);
       }
       break;
     }
 
     case RobotState::MOVE_FORWARD_TO_HOG_LINE: {
-      cmdForwardWithLineTracking();
+      // TODO(navigation): move forward with line tracking.
 
       // Constantly enforce parallel orientation while moving.
       if (!isParallelToLeftWall(in)) {
-        enterState(RobotState::TURN_ALIGN_TO_LEFT_WALL, now_ms);
+        setState(RobotState::TURN_ALIGN_TO_LEFT_WALL, now_ms);
         break;
       }
       if (isAtHogLine(in)) {
-        enterState(RobotState::LAUNCH, now_ms);
+        setState(RobotState::LAUNCH, now_ms);
       }
       break;
     }
 
     case RobotState::LAUNCH: {
-      cmdLaunch();
+      // Start one launch cycle once; updateStepperMotor() drives it asynchronously.
+      if (!isStepperMotorBusy() && !in.launch_cycle_complete) {
+        startStepperLaunchCycle(kLaunchClockwise, kLaunchCycleSteps);
+      }
       if (in.launch_cycle_complete) {
-        enterState(RobotState::RETURN_TO_END_ZONE, now_ms);
+        setState(RobotState::RETURN_TO_END_ZONE, now_ms);
       }
       break;
     }
 
     case RobotState::RETURN_TO_END_ZONE: {
-      cmdReturnToEndZone();
+      // TODO(navigation): return to end zone.
       if (in.end_zone_reached) {
-        enterState(RobotState::IDLE_FOR_LOADING, now_ms);
+        setState(RobotState::IDLE_FOR_LOADING, now_ms);
       }
       break;
     }
 
     case RobotState::FAULT:
     default: {
-      cmdStopAllMotion();
+      // TODO(navigation/motor): stop all motion.
       break;
     }
   }
