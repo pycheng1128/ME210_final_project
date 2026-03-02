@@ -214,7 +214,7 @@ void handleTurnAlignToLeftWall(const SensorFrame& in, unsigned long now_ms) {
 void handleShiftRightToCenterLine(const SensorFrame& in, unsigned long now_ms) {
   stopStepperMotor();
 
-  const float left_diff_cm = in.left_uss_front_cm - in.left_uss_back_cm;
+  // const float left_diff_cm = in.left_uss_front_cm - in.left_uss_back_cm;
   const bool  centered     =
       (in.line_mask_5b == 0b00100) || (in.line_mask_5b == 0b01110);
 
@@ -226,14 +226,14 @@ void handleShiftRightToCenterLine(const SensorFrame& in, unsigned long now_ms) {
   }
 
   // Strafe right with rotation trim to stay parallel.
-  float rot_trim = 0.0f;
-  if (left_diff_cm > FSM_PARALLEL_TOLERANCE_CM) {
-    rot_trim = FSM_SHIFT_ROTATE_RPM;
-  } else if (left_diff_cm < -FSM_PARALLEL_TOLERANCE_CM) {
-    rot_trim = -FSM_SHIFT_ROTATE_RPM;
-  }
+  // float rot_trim = 0.0f;
+  // if (left_diff_cm > FSM_PARALLEL_TOLERANCE_CM) {
+  //   rot_trim = FSM_SHIFT_ROTATE_RPM;
+  // } else if (left_diff_cm < -FSM_PARALLEL_TOLERANCE_CM) {
+  //   rot_trim = -FSM_SHIFT_ROTATE_RPM;
+  // }
 
-  Mobility_Drive(0.0f, -FSM_SHIFT_RIGHT_RPM, rot_trim);
+  Mobility_Drive(0.0f, -FSM_SHIFT_RIGHT_RPM, 0.0f);
 }
 
 void handleMoveForwardToHogLine(const SensorFrame& in, unsigned long now_ms) {
@@ -363,7 +363,14 @@ void updateStateMachine() {
   const unsigned long now_ms = millis();
 
   // Refresh sensor / actuator caches once per loop.
-  updateUss();
+  const bool need_uss =
+    (g_rt.state == RobotState::TURN_ALIGN_TO_LEFT_WALL) ||
+    ((g_rt.state == RobotState::RETURN_TO_END_ZONE) &&
+     (g_rt.return_sub == ReturnSubState::FOLLOW_LINE));
+
+  if (need_uss) {
+    updateUss();
+  }
   updateLineSensor();
 
   const SensorFrame in = readSensors();

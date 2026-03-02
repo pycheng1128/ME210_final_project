@@ -17,7 +17,7 @@
 #define MOB_DEBUG_INTERVAL_MS   100
 #define USS_DEBUG_PRINT         1
 #define USS_DEBUG_INTERVAL_MS   200
-#define LINE_DEBUG_PRINT        1
+#define LINE_DEBUG_PRINT        0
 #define LINE_DEBUG_INTERVAL_MS  200
 
 /* =====================================================================

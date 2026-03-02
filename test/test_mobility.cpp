@@ -22,7 +22,7 @@
 #include <mobility_driver.h>
 
 #ifndef ENABLE_MOBILITY_TEST_APP
-#define ENABLE_MOBILITY_TEST_APP 0
+#define ENABLE_MOBILITY_TEST_APP 1
 #endif
 
 #if ENABLE_MOBILITY_TEST_APP
@@ -49,84 +49,103 @@ static void printHelp(void) {
 }
 
 void setup() {
-    Mobility_Init();     /* Initializes Serial, pins, ISRs, E-Stop */
+    Serial.begin(115200); 
+    Mobility_Init();     /* Initializes pins, ISRs, E-Stop */
     printHelp();
 }
+
+/** 
+ * Simple state tracking for the test app to avoid redundant calls 
+ * and only update speed when the commanded action changes.
+ */
+enum class TestState { STOP, FORWARD, BACKWARD, LEFT, RIGHT, CCW, CW, DIAGONAL, SINGLE_MOTOR };
+static TestState currentTestState = TestState::STOP;
 
 void loop() {
     /* PID + E-Stop + debug prints happen inside Update() */
     Mobility_Update();
 
-    /* Handle serial commands */
+    /* Handle serial commands (Events) */
     if (Serial.available()) {
         char cmd = Serial.read();
-
+        
         switch (cmd) {
             case 'w':
-                Serial.println(F(">> Forward"));
-                Mobility_MoveForward(TEST_DRIVE_RPM);
+                if (currentTestState != TestState::FORWARD) {
+                    Serial.println(F(">> Forward"));
+                    Mobility_MoveForward(TEST_DRIVE_RPM);
+                    currentTestState = TestState::FORWARD;
+                }
                 break;
 
             case 's':
-                Serial.println(F(">> Backward"));
-                Mobility_MoveBackward(TEST_DRIVE_RPM);
+                if (currentTestState != TestState::BACKWARD) {
+                    Serial.println(F(">> Backward"));
+                    Mobility_MoveBackward(TEST_DRIVE_RPM);
+                    currentTestState = TestState::BACKWARD;
+                }
                 break;
 
             case 'a':
-                Serial.println(F(">> Strafe Left"));
-                Mobility_StrafeLeft(TEST_ROTATE_RPM);
+                if (currentTestState != TestState::LEFT) {
+                    Serial.println(F(">> Strafe Left"));
+                    Mobility_StrafeLeft(TEST_ROTATE_RPM);
+                    currentTestState = TestState::LEFT;
+                }
                 break;
 
             case 'd':
-                Serial.println(F(">> Strafe Right"));
-                Mobility_StrafeRight(TEST_ROTATE_RPM);
+                if (currentTestState != TestState::RIGHT) {
+                    Serial.println(F(">> Strafe Right"));
+                    Mobility_StrafeRight(TEST_ROTATE_RPM);
+                    currentTestState = TestState::RIGHT;
+                }
                 break;
 
             case 'q':
-                Serial.println(F(">> Rotate CCW"));
-                Mobility_RotateCCW(TEST_ROTATE_RPM);
+                if (currentTestState != TestState::CCW) {
+                    Serial.println(F(">> Rotate CCW"));
+                    Mobility_RotateCCW(TEST_ROTATE_RPM);
+                    currentTestState = TestState::CCW;
+                }
                 break;
 
             case 'e':
-                Serial.println(F(">> Rotate CW"));
-                Mobility_RotateCW(TEST_ROTATE_RPM);
+                if (currentTestState != TestState::CW) {
+                    Serial.println(F(">> Rotate CW"));
+                    Mobility_RotateCW(TEST_ROTATE_RPM);
+                    currentTestState = TestState::CW;
+                }
                 break;
 
             case 'x':
-                Serial.println(F(">> Diagonal (vx=30, vy=20, rot=0)"));
-                Mobility_Drive(30.0, 20.0, 0);
-                break;
-
-            /* --- Individual Motor Diagnostics --- */
-            case '1':
-                Serial.println(F(">> Testing: FRONT-LEFT (Motor 1)"));
-                Mobility_StopAll();
-                Mobility_SetMotorSpeed(MOB_MOTOR_1, TEST_DRIVE_RPM);
-                break;
-            case '2':
-                Serial.println(F(">> Testing: FRONT-RIGHT (Motor 2)"));
-                Mobility_StopAll();
-                Mobility_SetMotorSpeed(MOB_MOTOR_2, TEST_DRIVE_RPM);
-                break;
-            case '3': 
-                Serial.println(F(">> Testing: BACK-LEFT (Motor 3)")); 
-                Mobility_StopAll(); Mobility_SetMotorSpeed(MOB_MOTOR_3, TEST_DRIVE_RPM); 
-                break;
-            case '4': 
-                Serial.println(F(">> Testing: BACK-RIGHT (Motor 4)")); 
-                Mobility_StopAll();
-                Mobility_SetMotorSpeed(MOB_MOTOR_4, TEST_DRIVE_RPM);
+                if (currentTestState != TestState::DIAGONAL) {
+                    Serial.println(F(">> Diagonal (vx=30, vy=20, rot=0)"));
+                    Mobility_Drive(30.0, 20.0, 0);
+                    currentTestState = TestState::DIAGONAL;
+                }
                 break;
 
             case 'p':
-                Serial.println(F(">> STOP"));
-                Mobility_StopAll();
+                if (currentTestState != TestState::STOP) {
+                    Serial.println(F(">> STOP"));
+                    Mobility_StopAll();
+                    currentTestState = TestState::STOP;
+                }
+                break;
+
+            case '1': case '2': case '3': case '4': {
+                    uint8_t mIdx = cmd - '1'; 
+                    Serial.print(F(">> Testing motor: ")); Serial.println(mIdx + 1);
+                    Mobility_StopAll();
+                    Mobility_SetMotorSpeed(mIdx, TEST_DRIVE_RPM);
+                    currentTestState = TestState::SINGLE_MOTOR;
+                }
                 break;
 
             case 'r':
                 Serial.println(F(">> Encoders reset"));
-                for (uint8_t i = 0; i < MOB_NUM_MOTORS; i++)
-                    Mobility_ResetEncoder(i);
+                for (uint8_t i = 0; i < MOB_NUM_MOTORS; i++) Mobility_ResetEncoder(i);
                 break;
 
             case 'h':
