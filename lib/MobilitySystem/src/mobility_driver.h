@@ -41,8 +41,8 @@ extern "C" {
  *        FRONT
  *    ┌────────────┐
  *    │ FL(0) FR(1)│
- *    │   //  \\   │   Mecanum rollers form an O pattern
- *    │   \\  //   │
+ *    │   \\  //   │   Mecanum rollers form an X pattern
+ *    │   //  \\   │
  *    │ BL(2) BR(3)│
  *    └────────────┘
  *        BACK
@@ -179,7 +179,7 @@ bool Mobility_IsEStopped(void);
  *    rotation > 0 = CCW (left),  < 0 = CW (right)
  *
  *  All speed values are in RPM.  The mixing function computes
- *  per-wheel RPMs using standard Mecanum inverse kinematics:
+ *  per-wheel RPMs using X-type Mecanum inverse kinematics:
  *    FL = vx - vy - rotation
  *    FR = vx + vy + rotation
  *    BL = vx + vy - rotation

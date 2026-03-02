@@ -477,7 +477,7 @@ bool Mobility_IsEStopped(void) {
 /* =====================================================================
  *  Mecanum Drive API
  *
- *  Standard Mecanum inverse kinematics (X-roller config):
+ *  X-type Mecanum inverse kinematics:
  *    FL = vx - vy - rotation
  *    FR = vx + vy + rotation
  *    BL = vx + vy - rotation
@@ -488,16 +488,16 @@ bool Mobility_IsEStopped(void) {
  * ===================================================================== */
 
 void Mobility_Drive(float vx, float vy, float rotation) {
-    /* Compute individual wheel RPMs for O-type (Rollers Out) configuration:
-     *  FL = vx + vy - rotation
-     *  FR = vx - vy + rotation
-     *  BL = vx - vy - rotation
-     *  BR = vx + vy + rotation
+    /* Compute individual wheel RPMs for X-type configuration:
+     *  FL = vx - vy - rotation
+     *  FR = vx + vy + rotation
+     *  BL = vx + vy - rotation
+     *  BR = vx - vy + rotation
      */
-    float fl = vx + vy - rotation;
-    float fr = vx - vy + rotation;
-    float bl = vx - vy - rotation;
-    float br = vx + vy + rotation;
+    float fl = vx - vy - rotation;
+    float fr = vx + vy + rotation;
+    float bl = vx + vy - rotation;
+    float br = vx - vy + rotation;
 
     /* Auto-scale: if any wheel exceeds MAX_RPM, scale all down */
     float maxVal = fabs(fl);
