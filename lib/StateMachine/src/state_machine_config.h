@@ -47,4 +47,7 @@
 /** Hardcoded duration for ~30 cm left strafe (ms, tune on robot) */
 #define FSM_RETURN_SHIFT_LEFT_30CM_MS 1800UL
 
+/** FAULT status print period while waiting for operator recovery (ms) */
+#define FSM_FAULT_LOG_INTERVAL_MS    1000UL
+
 #endif /* STATE_MACHINE_CONFIG_H */

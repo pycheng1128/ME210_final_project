@@ -33,6 +33,7 @@ struct SensorFrame {
   bool launch_cycle_complete = false;
   bool end_zone_reached = false;
   bool stop_commanded = false;
+  bool recover_commanded = false;
 };
 
 struct Runtime {
@@ -65,7 +66,18 @@ SensorFrame readSensors() {
   in.line_mask_5b = lineMask5b();
   in.launch_cycle_complete = checkStepperLaunchCycleComplete();
 
-  // TODO: connect end-zone detection and stop-command interfaces.
+  // E-stop is treated as an immediate global stop request.
+  in.stop_commanded = Mobility_IsEStopped();
+
+  // Serial 'r'/'R' is a temporary operator recovery command for FAULT.
+  while (Serial.available() > 0) {
+    const char ch = static_cast<char>(Serial.read());
+    if ((ch == 'r') || (ch == 'R')) {
+      in.recover_commanded = true;
+    }
+  }
+
+  // TODO: connect end-zone detection and operator command interfaces.
   return in;
 }
 
@@ -110,11 +122,18 @@ void updateStateMachine() {
 
   // TODO: wire global override(s), e.g. remote stop command and E-stop behavior.
   if (in.stop_commanded) {
-    setState(RobotState::IDLE_FOR_LOADING, now_ms);
+    Mobility_StopAll();
+    stopStepperMotor();
+    if (g_rt.state != RobotState::IDLE_FOR_LOADING) {
+      setState(RobotState::IDLE_FOR_LOADING, now_ms);
+    } else {
+      // Hold in IDLE while stop is active; timer restarts after release.
+      g_rt.state_enter_ms = now_ms;
+    }
     return;
   }
 
-  if (stateTimedOut(now_ms)) {
+  if ((g_rt.state != RobotState::FAULT) && stateTimedOut(now_ms)) {
     setState(RobotState::FAULT, now_ms);
     return;
   }
@@ -330,9 +349,25 @@ void updateStateMachine() {
       break;
     }
 
-    case RobotState::FAULT:
+    case RobotState::FAULT: {
+      static unsigned long last_fault_log_ms = 0UL;
+
+      Mobility_StopAll();
+      stopStepperMotor();
+
+      if ((now_ms - last_fault_log_ms) >= FSM_FAULT_LOG_INTERVAL_MS) {
+        Serial.println(F("[FSM] FAULT latched. Send 'r' to recover."));
+        last_fault_log_ms = now_ms;
+      }
+
+      if (in.recover_commanded && !Mobility_IsEStopped()) {
+        setState(RobotState::IDLE_FOR_LOADING, now_ms);
+      }
+      break;
+    }
+
     default: {
-      // TODO: force a safe stop and wait for operator recovery command.
+      setState(RobotState::FAULT, now_ms);
       break;
     }
   }

@@ -21,6 +21,12 @@
 #include <Arduino.h>
 #include <mobility_driver.h>
 
+#ifndef ENABLE_MOBILITY_TEST_APP
+#define ENABLE_MOBILITY_TEST_APP 0
+#endif
+
+#if ENABLE_MOBILITY_TEST_APP
+
 /* Test speed (RPM) — adjust as needed */
 #define TEST_DRIVE_RPM    30.0f
 #define TEST_ROTATE_RPM   15.0f
@@ -108,11 +114,8 @@ void loop() {
                 break;
             case '4': 
                 Serial.println(F(">> Testing: BACK-RIGHT (Motor 4)")); 
-                Mobility_StopAll(); Mobility_SetMotorSpeed(MOB_MOTOR_4, TEST_DRIVE_RPM); 
-                break;
-                Serial.println(F(">> Test Motor 4 (BR)"));
                 Mobility_StopAll();
-                Mobility_SetMotorSpeed(MOB_BR, TEST_DRIVE_RPM);
+                Mobility_SetMotorSpeed(MOB_MOTOR_4, TEST_DRIVE_RPM);
                 break;
 
             case 'p':
@@ -135,3 +138,5 @@ void loop() {
         }
     }
 }
+
+#endif  // ENABLE_MOBILITY_TEST_APP
