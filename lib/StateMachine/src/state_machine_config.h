@@ -11,15 +11,18 @@
 
 #include "config.h"
 
-/* ── Launch ────────────────────────────────────────────────────────── */
+/* ── General / State Control ────────────────────────────────────────── */
 
-/** Stepper launch direction (1 = clockwise, 0 = counter-clockwise) */
-#define FSM_LAUNCH_CLOCKWISE          1
+/** Initial wait time in IDLE state (ms) */
+#define FSM_LOAD_IDLE_MS              5000UL
 
-/** Stepper steps per launch cycle */
-#define FSM_LAUNCH_CYCLE_STEPS        400U
+/** Max duration for any single state before entering FAULT (ms) */
+#define FSM_STATE_TIMEOUT_MS          70000UL
 
 /* ── Alignment ─────────────────────────────────────────────────────── */
+
+/** Max difference between left front/rear sensors for parallel (cm) */
+#define FSM_PARALLEL_TOLERANCE_CM      0.6f
 
 /** Rotation speed while aligning to left wall (RPM) */
 #define FSM_ALIGN_ROTATE_RPM          15.0f
@@ -72,5 +75,13 @@
 
 /** FAULT status print period while waiting for recovery (ms) */
 #define FSM_FAULT_LOG_INTERVAL_MS    1000UL
+
+/* ── Launch ────────────────────────────────────────────────────────── */
+
+/** Stepper launch direction (1 = clockwise, 0 = counter-clockwise) */
+#define FSM_LAUNCH_CLOCKWISE          1
+
+/** Stepper steps per launch cycle */
+#define FSM_LAUNCH_CYCLE_STEPS        400U
 
 #endif /* STATE_MACHINE_CONFIG_H */

@@ -11,6 +11,9 @@
 /** Minimum interval between USS readings (ms) */
 #define USS_READ_INTERVAL_MS    80
 
+/** Trigger distance for isTriggered() check (cm) */
+#define USS_THRESHOLD_CM        50.0f
+
 /** Pulse timeout — max echo wait (~517 cm) */
 #define USS_PULSE_TIMEOUT_US    30000UL
 
