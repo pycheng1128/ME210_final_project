@@ -1,14 +1,15 @@
 #pragma once
 
 #include <Arduino.h>
+#include "stepper_config.h"
 
-// Initialize stepper GPIO pins.
+// Initialize stepper GPIO pins and hardware timer.
 void initStepperMotor();
 
-// Start one launch cycle (default 200 steps ~= 1 rev for common 1.8 deg steppers).
-void startStepperLaunchCycle(bool clockwise = true, uint16_t steps = 200);
+// Start one launch cycle.
+void startStepperLaunchCycle(bool clockwise = true, uint16_t steps = STEPPER_LAUNCH_STEPS);
 
-// Non-blocking update; call this every loop.
+// No-op — stepping is handled by timer ISR. Kept for API compatibility.
 void updateStepperMotor();
 
 // True while a launch cycle is running.
@@ -17,5 +18,5 @@ bool isStepperMotorBusy();
 // Returns true once when a launch cycle finishes, then clears the flag.
 bool checkStepperLaunchCycleComplete();
 
-// Immediate stop (keeps pin outputs valid, no further stepping).
+// Immediate stop (detaches timer, no further stepping).
 void stopStepperMotor();

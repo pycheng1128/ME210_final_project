@@ -17,20 +17,20 @@
 #define FSM_LAUNCH_CLOCKWISE          1
 
 /** Stepper steps per launch cycle */
-#define FSM_LAUNCH_CYCLE_STEPS        1600U
+#define FSM_LAUNCH_CYCLE_STEPS        400U
 
 /* ── Alignment ─────────────────────────────────────────────────────── */
 
 /** Rotation speed while aligning to left wall (RPM) */
-#define FSM_ALIGN_ROTATE_RPM          30.0f
+#define FSM_ALIGN_ROTATE_RPM          15.0f
 
 /* ── Shift Right ───────────────────────────────────────────────────── */
 
 /** Right-strafe speed while searching for center line (RPM) */
-#define FSM_SHIFT_RIGHT_RPM           20.0f
+#define FSM_SHIFT_RIGHT_RPM           15.0f
 
 /** Rotational correction applied during right shift (RPM) */
-#define FSM_SHIFT_ROTATE_RPM           12.0f
+#define FSM_SHIFT_ROTATE_RPM           30.0f
 
 /** Re-align with TURN_ALIGN when left USS mismatch exceeds this (cm) */
 #define FSM_SHIFT_REALIGN_DIFF_CM      1.2f
@@ -38,7 +38,7 @@
 /* ── Forward / Line Follow ─────────────────────────────────────────── */
 
 /** Forward speed while approaching hog line (RPM) */
-#define FSM_FORWARD_TO_HOG_RPM        12.0f
+#define FSM_FORWARD_TO_HOG_RPM        30.0f
 
 /** Lateral correction magnitude for line following (RPM) */
 #define FSM_LINE_FOLLOW_STRAFE_RPM     8.0f

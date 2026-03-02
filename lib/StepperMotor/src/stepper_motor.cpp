@@ -1,103 +1,128 @@
+/**
+ * @file stepper_motor.cpp
+ * @brief Timer-interrupt driven stepper motor for precise, non-blocking step pulses.
+ *
+ * Uses Timer3 on the ATmega2560 to generate step pulses at STEPPER_STEP_FREQ_HZ.
+ * This guarantees exact step timing regardless of main loop latency (USS, PID, etc.),
+ * providing consistent torque and reliable stepping.
+ *
+ * Lifecycle:
+ *   1. startStepperLaunchCycle() → sets direction, enters PENDING state
+ *   2. updateStepperMotor()      → after STEPPER_STARTUP_DELAY_MS, starts Timer3
+ *   3. Timer3 ISR               → generates step pulses until target reached
+ *   4. ISR auto-stops           → sets cycle_complete flag
+ *
+ * Timer3 was chosen because:
+ *   - Timer0: used by Arduino millis()/micros()
+ *   - Timer1: may be used by Servo library or other subsystems
+ *   - Timer2: 8-bit only, limited resolution
+ *   - Timer4/5: available but Timer3 is sufficient
+ */
+
 #include <Arduino.h>
 #include "pin_map.h"
 #include "stepper_config.h"
 #include "stepper_motor.h"
 
-// Private namespace
+// Must define USE_TIMER_3 before including the library
+#define USE_TIMER_3   true
+#include <TimerInterrupt.h>
+
+// ── Private state ──────────────────────────────────────────────────
+
 namespace {
 
-struct Runtime {
-  bool active = false;
-  bool step_pin_high = false;
-  bool cycle_complete = false;
-
-  uint16_t target_steps = 0;
-  uint16_t steps_done = 0;
-  unsigned long last_toggle_us = 0UL;
+enum class StepperState : uint8_t {
+  IDLE,       // not running
+  PENDING,    // direction set, waiting for startup delay
+  RUNNING     // Timer3 ISR is stepping
 };
 
-Runtime g_rt;
+volatile StepperState g_state          = StepperState::IDLE;
+volatile uint16_t     g_step_count     = 0;
+volatile uint16_t     g_target_steps   = 0;
+volatile bool         g_cycle_complete = false;
 
-// clockwise if clockwise == true, else CCW
-void setDirection(bool clockwise) {
-  digitalWrite(STEPPER_DIR_PIN, clockwise ? HIGH : LOW);
+unsigned long         g_pending_start_ms = 0;
+
+// Timer3 ISR — fires at STEPPER_STEP_FREQ_HZ, generates one step pulse per call
+void stepperTimerISR() {
+  if (g_state != StepperState::RUNNING) return;
+
+  if (g_step_count >= g_target_steps) {
+    // Done — stop the timer and set completion flag
+    ITimer3.detachInterrupt();
+    g_state = StepperState::IDLE;
+    g_cycle_complete = true;
+    return;
+  }
+
+  // Generate one step pulse (rising edge triggers the driver)
+  digitalWrite(STEPPER_STEP_PIN, HIGH);
+  digitalWrite(STEPPER_STEP_PIN, LOW);
+
+  g_step_count++;
 }
 
 }  // namespace
+
+// ── Public API ─────────────────────────────────────────────────────
 
 void initStepperMotor() {
   pinMode(STEPPER_STEP_PIN, OUTPUT);
   pinMode(STEPPER_DIR_PIN, OUTPUT);
 
   digitalWrite(STEPPER_STEP_PIN, LOW);
-  setDirection(true);
+  digitalWrite(STEPPER_DIR_PIN, HIGH);  // default direction
+
+  ITimer3.init();
 }
 
-// Starts a stepper launch motion (prepares for updateStepperMotor())
 void startStepperLaunchCycle(bool clockwise, uint16_t steps) {
-  // Avoid 0 steps
-  if (steps == 0) {
-    steps = 1;
-  }
+  // Guard against 0 steps
+  if (steps == 0) steps = 1;
 
-  g_rt.active = true;           // motor is running
-  g_rt.step_pin_high = false;   // pulse starts from LOW
-  g_rt.cycle_complete = false;  // completion flag
-  g_rt.target_steps = steps;    // how many steps to do
-  g_rt.steps_done = 0;          // reset count 
-  g_rt.last_toggle_us = micros();
+  // Set direction
+  digitalWrite(STEPPER_DIR_PIN, clockwise ? HIGH : LOW);
 
-  setDirection(clockwise);
-  digitalWrite(STEPPER_STEP_PIN, LOW); // STEP_PIN starts as LOW
+  // Enter PENDING — wait for startup delay before stepping
+  noInterrupts();
+  g_step_count     = 0;
+  g_target_steps   = steps;
+  g_cycle_complete = false;
+  g_state          = StepperState::PENDING;
+  interrupts();
+
+  g_pending_start_ms = millis();
 }
 
 void updateStepperMotor() {
-  // if stepper is not active, no need to update
-  if (!g_rt.active) {
-    return;
-  }
-
-  // check if stepper active time exceeds predefined limit
-  const unsigned long now_us = micros();
-  if ((now_us - g_rt.last_toggle_us) < STEPPER_STEP_INTERVAL_US) {
-    return;
-  }
-  // update time
-  g_rt.last_toggle_us = now_us;
-
-  // if STEP PIN is low, toggle to high
-  if (!g_rt.step_pin_high) {
-    digitalWrite(STEPPER_STEP_PIN, HIGH);
-    g_rt.step_pin_high = true;
-    return;
-  }
-
-  digitalWrite(STEPPER_STEP_PIN, LOW);
-  g_rt.step_pin_high = false;
-  g_rt.steps_done++;
-
-  // if cycle complete
-  if (g_rt.steps_done >= g_rt.target_steps) {
-    g_rt.active = false;
-    g_rt.cycle_complete = true;
+  // Non-blocking startup delay: wait for driver to settle, then start timer.
+  if (g_state == StepperState::PENDING) {
+    if ((millis() - g_pending_start_ms) >= STEPPER_STARTUP_DELAY_MS) {
+      noInterrupts();
+      g_state = StepperState::RUNNING;
+      interrupts();
+      ITimer3.setFrequency((float)STEPPER_STEP_FREQ_HZ, stepperTimerISR);
+    }
   }
 }
 
 bool isStepperMotorBusy() {
-  return g_rt.active;
+  return (g_state != StepperState::IDLE);
 }
 
-// cycle complete -> true, else false
 bool checkStepperLaunchCycleComplete() {
-  if (!g_rt.cycle_complete) {
-    return false;
-  }
-  g_rt.cycle_complete = false;
+  if (!g_cycle_complete) return false;
+  g_cycle_complete = false;
   return true;
 }
 
 void stopStepperMotor() {
-  g_rt.active = false;
-  g_rt.cycle_complete = false;   // prevent stale flag from skipping future launches
+  ITimer3.detachInterrupt();
+  noInterrupts();
+  g_state          = StepperState::IDLE;
+  g_cycle_complete = false;
+  interrupts();
   digitalWrite(STEPPER_STEP_PIN, LOW);
 }
