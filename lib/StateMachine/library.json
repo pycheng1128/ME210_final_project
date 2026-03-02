@@ -1,8 +1,0 @@
-{
-  "name": "StateMachine",
-  "version": "1.0.0",
-  "description": "Top-level robot state machine scaffold for ME210 final project.",
-  "keywords": "state-machine, fsm, arduino-mega",
-  "frameworks": "arduino",
-  "platforms": "atmelavr"
-}

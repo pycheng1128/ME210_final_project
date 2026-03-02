@@ -1,6 +1,9 @@
 /**
  * @file state_machine_config.h
- * @brief Low-level configuration for the state machine subsystem
+ * @brief Tuning parameters for the state machine subsystem
+ *
+ * All values referenced by state_machine.cpp live here so they can
+ * be tweaked in one place without touching logic.
  */
 
 #ifndef STATE_MACHINE_CONFIG_H
@@ -8,46 +11,66 @@
 
 #include "config.h"
 
+/* ── Launch ────────────────────────────────────────────────────────── */
+
 /** Stepper launch direction (1 = clockwise, 0 = counter-clockwise) */
-#define FSM_LAUNCH_CLOCKWISE      1
+#define FSM_LAUNCH_CLOCKWISE          1
 
 /** Stepper steps per launch cycle */
-#define FSM_LAUNCH_CYCLE_STEPS    200U
+#define FSM_LAUNCH_CYCLE_STEPS        1600U
 
-/** Rotation speed used while aligning to left wall */
-#define FSM_ALIGN_ROTATE_RPM       15.0f
+/* ── Alignment ─────────────────────────────────────────────────────── */
 
-/** Right shift speed while searching for center line */
-#define FSM_SHIFT_RIGHT_RPM        15.0f
+/** Rotation speed while aligning to left wall (RPM) */
+#define FSM_ALIGN_ROTATE_RPM          15.0f
 
-/** Small rotational correction applied during right shift */
-#define FSM_SHIFT_ROTATE_RPM        6.0f
+/* ── Shift Right ───────────────────────────────────────────────────── */
 
-/** Re-align with TURN_ALIGN when left USS mismatch exceeds this */
-#define FSM_SHIFT_REALIGN_DIFF_CM   1.2f
+/** Right-strafe speed while searching for center line (RPM) */
+#define FSM_SHIFT_RIGHT_RPM           10.0f
 
-/** Forward speed while approaching hog line */
-#define FSM_FORWARD_TO_HOG_RPM      18.0f
+/** Rotational correction applied during right shift (RPM) */
+#define FSM_SHIFT_ROTATE_RPM           6.0f
 
-/** Lateral correction magnitude for simple line following */
-#define FSM_LINE_FOLLOW_STRAFE_RPM   8.0f
+/** Re-align with TURN_ALIGN when left USS mismatch exceeds this (cm) */
+#define FSM_SHIFT_REALIGN_DIFF_CM      1.2f
 
-/** Front USS target distance to trigger final return maneuver (cm) */
-#define FSM_RETURN_FRONT_TARGET_CM   15.0f
+/* ── Forward / Line Follow ─────────────────────────────────────────── */
 
-/** Rotation speed during hardcoded 180-degree turn */
-#define FSM_RETURN_TURN_RPM          15.0f
+/** Forward speed while approaching hog line (RPM) */
+#define FSM_FORWARD_TO_HOG_RPM        12.0f
 
-/** Hardcoded duration for 180-degree turn (ms, tune on robot) */
-#define FSM_RETURN_TURN_180_MS     1300UL
+/** Lateral correction magnitude for line following (RPM) */
+#define FSM_LINE_FOLLOW_STRAFE_RPM     8.0f
 
-/** Left strafe speed for final lateral move */
-#define FSM_RETURN_SHIFT_LEFT_RPM    15.0f
+/* ── Return to End Zone ────────────────────────────────────────────── */
 
-/** Hardcoded duration for ~30 cm left strafe (ms, tune on robot) */
+/** Front USS target distance to trigger return maneuver (cm) */
+#define FSM_RETURN_FRONT_TARGET_CM    15.0f
+
+/** Return line-follow forward speed (RPM) */
+#define FSM_RETURN_LINE_FOLLOW_RPM    18.0f
+
+/** Rotation speed during 180-degree turn (RPM) */
+#define FSM_RETURN_TURN_RPM           15.0f
+
+/** Duration for 180-degree turn (ms, tune on robot) */
+#define FSM_RETURN_TURN_180_MS       1300UL
+
+/** Left strafe speed for final lateral move (RPM) */
+#define FSM_RETURN_SHIFT_LEFT_RPM     15.0f
+
+/** Duration for ~30 cm left strafe (ms, tune on robot) */
 #define FSM_RETURN_SHIFT_LEFT_30CM_MS 1800UL
 
-/** FAULT status print period while waiting for operator recovery (ms) */
+/* ── USS Fault ─────────────────────────────────────────────────────── */
+
+/** Max consecutive invalid USS reads before entering FAULT */
+#define FSM_USS_FAULT_MAX_CONSEC      10
+
+/* ── FAULT ─────────────────────────────────────────────────────────── */
+
+/** FAULT status print period while waiting for recovery (ms) */
 #define FSM_FAULT_LOG_INTERVAL_MS    1000UL
 
 #endif /* STATE_MACHINE_CONFIG_H */

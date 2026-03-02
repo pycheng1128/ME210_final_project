@@ -23,9 +23,9 @@
  * ├──────────────┼──────────────────────────────────┼────────────────┤
  * │  Stepper     │  STEP / DIR                      │  D34, D35      │
  * ├──────────────┼──────────────────────────────────┼────────────────┤
- * │  USS         │  Ultra 1  Trig / Echo            │  D36, D37      │
- * │              │  Ultra 2  Trig / Echo            │  D38, D39      │
- * │              │  Ultra 3  Trig / Echo            │  D40, D41      │
+ * │  USS         │  Ultra 1  Trig / Echo (Front)    │  D36, D37      │
+ * │              │  Ultra 2  Trig / Echo (L-Rear)   │  D38, D39      │
+ * │              │  Ultra 3  Trig / Echo (L-Front)  │  D40, D41      │
  * ├──────────────┼──────────────────────────────────┼────────────────┤
  * │  Line Sensor │  IR Ch1–Ch5                     │  A1–A5         │
  * └──────────────┴──────────────────────────────────┴────────────────┘
@@ -81,12 +81,12 @@
 /* =====================================================================
  *  ULTRASONIC SENSORS (USS) — 3× HC-SR04
  * ===================================================================== */
-#define USS_LEFT_FRONT_TRIG     36      /* Ultra 1 */
-#define USS_LEFT_FRONT_ECHO     37
-#define USS_LEFT_REAR_TRIG      38      /* Ultra 2 */
+#define USS_FRONT_TRIG          36      /* Ultra 1 — front-facing */
+#define USS_FRONT_ECHO          37
+#define USS_LEFT_REAR_TRIG      38      /* Ultra 2 — left wall, rear */
 #define USS_LEFT_REAR_ECHO      39
-#define USS_FRONT_TRIG          40      /* Ultra 3 */
-#define USS_FRONT_ECHO          41
+#define USS_LEFT_FRONT_TRIG     40      /* Ultra 3 — left wall, front */
+#define USS_LEFT_FRONT_ECHO     41
 
 /* =====================================================================
  *  LINE SENSOR — 5-channel IR reflectance array

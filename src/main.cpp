@@ -4,6 +4,7 @@
 #include <state_machine.h>
 #include <stepper_motor.h>
 #include <uss.h>
+#include "config.h"
 
 #ifndef ENABLE_MOBILITY_TEST_APP
 #define ENABLE_MOBILITY_TEST_APP 0
@@ -12,6 +13,7 @@
 #if !ENABLE_MOBILITY_TEST_APP
 
 void setup() {
+  Serial.begin(SERIAL_BAUD);
   Mobility_Init();
   initUss();
   initLineSensor();

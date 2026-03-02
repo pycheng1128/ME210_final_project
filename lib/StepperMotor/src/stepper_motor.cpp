@@ -98,5 +98,6 @@ bool checkStepperLaunchCycleComplete() {
 
 void stopStepperMotor() {
   g_rt.active = false;
+  g_rt.cycle_complete = false;   // prevent stale flag from skipping future launches
   digitalWrite(STEPPER_STEP_PIN, LOW);
 }

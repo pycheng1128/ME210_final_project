@@ -17,6 +17,11 @@ struct UssSnapshot {
 // Create UssSnapShot instance
 UssSnapshot g_last{};
 unsigned long g_last_read_ms = 0UL;
+uint8_t g_uss_index = 0;       // round-robin sensor index (0, 1, 2)
+
+#if USS_DEBUG_PRINT
+unsigned long g_last_debug_ms = 0UL;
+#endif
 
 float readDistanceCm(uint8_t trig_pin, uint8_t echo_pin) {
     // sends a short trigger pulse on trig_pin
@@ -55,7 +60,8 @@ void initUss() {
   digitalWrite(USS_FRONT_TRIG, LOW);
 }
 
-// Update readings of USS
+// Update ONE USS sensor per call (round-robin) to avoid 90ms blocking.
+// All 3 sensors are refreshed within 3 × USS_READ_INTERVAL_MS.
 void updateUss() {
     // Don't change g_last if interval is short
   const unsigned long now_ms = millis();
@@ -64,13 +70,40 @@ void updateUss() {
   }
   g_last_read_ms = now_ms;
 
-  g_last.left_front_cm = readDistanceCm(USS_LEFT_FRONT_TRIG, USS_LEFT_FRONT_ECHO);
-  g_last.left_rear_cm = readDistanceCm(USS_LEFT_REAR_TRIG, USS_LEFT_REAR_ECHO);
-  g_last.front_cm = readDistanceCm(USS_FRONT_TRIG, USS_FRONT_ECHO);
+  switch (g_uss_index) {
+    case 0:
+      g_last.left_front_cm = readDistanceCm(USS_LEFT_FRONT_TRIG, USS_LEFT_FRONT_ECHO);
+      g_last.left_front_triggered = isTriggered(g_last.left_front_cm);
+      break;
+    case 1:
+      g_last.left_rear_cm = readDistanceCm(USS_LEFT_REAR_TRIG, USS_LEFT_REAR_ECHO);
+      g_last.left_rear_triggered = isTriggered(g_last.left_rear_cm);
+      break;
+    case 2:
+      g_last.front_cm = readDistanceCm(USS_FRONT_TRIG, USS_FRONT_ECHO);
+      g_last.front_triggered = isTriggered(g_last.front_cm);
+      break;
+  }
 
-  g_last.left_front_triggered = isTriggered(g_last.left_front_cm);
-  g_last.left_rear_triggered = isTriggered(g_last.left_rear_cm);
-  g_last.front_triggered = isTriggered(g_last.front_cm);
+  g_uss_index = (g_uss_index + 1) % 3;
+
+#if USS_DEBUG_PRINT
+  if ((now_ms - g_last_debug_ms) >= USS_DEBUG_INTERVAL_MS) {
+    g_last_debug_ms = now_ms;
+    Serial.print(F("[USS] LF="));
+    Serial.print(g_last.left_front_cm, 1);
+    Serial.print(F(" LR="));
+    Serial.print(g_last.left_rear_cm, 1);
+    Serial.print(F(" FR="));
+    Serial.print(g_last.front_cm, 1);
+    Serial.print(F("  Trig: LF="));
+    Serial.print(g_last.left_front_triggered);
+    Serial.print(F(" LR="));
+    Serial.print(g_last.left_rear_triggered);
+    Serial.print(F(" FR="));
+    Serial.println(g_last.front_triggered);
+  }
+#endif
 }
 
 float ussLeftFrontCm() {

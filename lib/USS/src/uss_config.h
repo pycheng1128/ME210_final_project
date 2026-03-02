@@ -9,7 +9,7 @@
 #include "config.h"
 
 /** Minimum interval between USS readings (ms) */
-#define USS_READ_INTERVAL_MS    60
+#define USS_READ_INTERVAL_MS    80
 
 /** Pulse timeout — max echo wait (~517 cm) */
 #define USS_PULSE_TIMEOUT_US    30000UL

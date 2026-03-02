@@ -24,6 +24,7 @@
  */
 
 #include "mobility_driver.h"
+#include <stepper_motor.h>
 #include <math.h>
 
 /* =====================================================================
@@ -161,6 +162,7 @@ static void checkEStop(void) {
         /* Rising edge: just triggered */
         eStopActive = true;
         Mobility_StopAll();
+        stopStepperMotor();
 #if MOB_DEBUG_PRINT
         Serial.println(F("[MOB] *** E-STOP ACTIVATED *** All motors stopped."));
 #endif
@@ -269,7 +271,6 @@ void Mobility_Init(void) {
     prevDebugTime = millis();
 
 #if MOB_DEBUG_PRINT
-    Serial.begin(SERIAL_BAUD);
     Serial.println(F("======================================"));
     Serial.println(F("[MOB] Mobility driver initialized"));
     Serial.println(F("      4 motors, PI control, E-Stop"));
