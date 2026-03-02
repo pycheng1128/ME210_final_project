@@ -9,7 +9,7 @@ void initStepperMotor();
 // Start one launch cycle.
 void startStepperLaunchCycle(bool clockwise = true, uint16_t steps = STEPPER_LAUNCH_STEPS);
 
-// No-op — stepping is handled by timer ISR. Kept for API compatibility.
+// No-op — stepping is fully handled by Timer3 ISR. Kept for API compatibility.
 void updateStepperMotor();
 
 // True while a launch cycle is running.

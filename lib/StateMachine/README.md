@@ -20,6 +20,12 @@ This library implements a **non-blocking finite state machine (FSM)** that contr
                                    │ aligned + front clear           │
                                    ▼                                 │
                           ┌──────────────────────┐                   │
+                          │ MOVE_FORWARD_AFTER   │                   │
+                          │ ALIGN (timed fwd)    │                   │
+                          └────────┬─────────────┘                   │
+                                   │ timer expires                   │
+                                   ▼                                 │
+                          ┌──────────────────────┐                   │
                           │ SHIFT_RIGHT_TO       │                   │
                           │ CENTER_LINE          │                   │
                           └────────┬─────────────┘                   │
@@ -57,7 +63,7 @@ This library implements a **non-blocking finite state machine (FSM)** that contr
 |------|--------|
 | **Purpose** | Allow the operator to load the projectile. |
 | **Actions** | Stop all motors (drivetrain + stepper). |
-| **Transition** | After `FSM_LOAD_IDLE_MS` (10 s) → `TURN_ALIGN_TO_LEFT_WALL` |
+| **Transition** | After `FSM_LOAD_IDLE_MS` (5 s) → `TURN_ALIGN_TO_LEFT_WALL` |
 
 ### 2. `TURN_ALIGN_TO_LEFT_WALL`
 
@@ -66,19 +72,27 @@ This library implements a **non-blocking finite state machine (FSM)** that contr
 | **Purpose** | Rotate until the robot is parallel to the left wall. |
 | **Sensors** | Two left-side ultrasonic sensors (front + back). |
 | **Logic** | Compute `left_diff = uss_front − uss_back`. Rotate CW or CCW to drive diff → 0. If the front USS is blocked, rotate CW to clear. |
-| **Transition** | `|left_diff| ≤ FSM_PARALLEL_TOLERANCE_CM` **and** front clear → `SHIFT_RIGHT_TO_CENTER_LINE` |
+| **Transition** | `|left_diff| ≤ FSM_PARALLEL_TOLERANCE_CM` **and** front clear → `MOVE_FORWARD_AFTER_ALIGN` |
 | **Fault** | N consecutive invalid USS reads (`FSM_USS_FAULT_MAX_CONSEC`) → `FAULT` |
 
-### 3. `SHIFT_RIGHT_TO_CENTER_LINE`
+### 3. `MOVE_FORWARD_AFTER_ALIGN`
+
+| Item | Detail |
+|------|--------|
+| **Purpose** | Drive forward for a fixed duration after wall alignment before searching for the center line. |
+| **Actions** | Drive forward at `FSM_FORWARD_AFTER_ALIGN_RPM`. |
+| **Transition** | After `FSM_FORWARD_AFTER_ALIGN_MS` (2 s) → `SHIFT_RIGHT_TO_CENTER_LINE` |
+
+### 4. `SHIFT_RIGHT_TO_CENTER_LINE`
 
 | Item | Detail |
 |------|--------|
 | **Purpose** | Strafe right until the line sensors detect the center line. |
-| **Sensors** | Left USS pair (for rotational trim) + 5-bit line sensor mask. |
-| **Logic** | Strafe right at `FSM_SHIFT_RIGHT_RPM` with small rotational trim from USS diff to stay parallel. No re-alignment fallback — stays in this state until centered or timed out. |
+| **Sensors** | 5-bit line sensor mask. |
+| **Logic** | Strafe right at `FSM_SHIFT_RIGHT_RPM`. |
 | **Transition** | Line mask = `00100` or `01110` (centered) → `MOVE_FORWARD_TO_HOG_LINE` |
 
-### 4. `MOVE_FORWARD_TO_HOG_LINE`
+### 5. `MOVE_FORWARD_TO_HOG_LINE`
 
 | Item | Detail |
 |------|--------|
@@ -87,7 +101,7 @@ This library implements a **non-blocking finite state machine (FSM)** that contr
 | **Logic** | Drive forward at `FSM_FORWARD_TO_HOG_RPM` with strafe correction from `lineFollowStrafeCorrectionRpm()`. |
 | **Transition** | Line mask = `11111` (all sensors see black = hog line) → `LAUNCH` |
 
-### 5. `LAUNCH`
+### 6. `LAUNCH`
 
 | Item | Detail |
 |------|--------|
@@ -95,7 +109,7 @@ This library implements a **non-blocking finite state machine (FSM)** that contr
 | **Actions** | 1. Stop drivetrain. 2. Start stepper launch cycle **once** (one-shot guard). 3. Call `updateStepperMotor()` each loop to advance. |
 | **Transition** | `checkStepperLaunchCycleComplete()` returns `true` → `RETURN_TO_END_ZONE` |
 
-### 6. `RETURN_TO_END_ZONE`
+### 7. `RETURN_TO_END_ZONE`
 
 This state uses **three non-blocking sub-states**:
 
@@ -107,7 +121,7 @@ This state uses **three non-blocking sub-states**:
 
 A `default` case in the sub-state switch transitions to `FAULT` for defensive safety.
 
-### 7. `FAULT`
+### 8. `FAULT`
 
 | Item | Detail |
 |------|--------|
@@ -156,8 +170,8 @@ All FSM-specific parameters live in `state_machine_config.h`. Global parameters 
 
 | Macro | Default | Description |
 |-------|---------|-------------|
-| `FSM_LOAD_IDLE_MS` | `10000` | How long to wait in IDLE before starting |
-| `FSM_STATE_TIMEOUT_MS` | `12000` | Max time in any state before FAULT |
+| `FSM_LOAD_IDLE_MS` | `5000` | How long to wait in IDLE before starting |
+| `FSM_STATE_TIMEOUT_MS` | `70000` | Max time in any state before FAULT |
 | `FSM_PARALLEL_TOLERANCE_CM` | `0.4` | USS diff threshold to consider "aligned" |
 
 ### Speeds (in `state_machine_config.h`)
@@ -165,9 +179,10 @@ All FSM-specific parameters live in `state_machine_config.h`. Global parameters 
 | Macro | Default | Description |
 |-------|---------|-------------|
 | `FSM_ALIGN_ROTATE_RPM` | `15.0` | Rotation speed during wall alignment |
+| `FSM_FORWARD_AFTER_ALIGN_RPM` | `20.0` | Forward speed after alignment |
 | `FSM_SHIFT_RIGHT_RPM` | `15.0` | Strafe speed while searching for center line |
-| `FSM_SHIFT_ROTATE_RPM` | `6.0` | Rotational trim during right shift |
-| `FSM_FORWARD_TO_HOG_RPM` | `18.0` | Forward speed to hog line |
+| `FSM_SHIFT_ROTATE_RPM` | `30.0` | Rotational trim during right shift |
+| `FSM_FORWARD_TO_HOG_RPM` | `30.0` | Forward speed to hog line |
 | `FSM_LINE_FOLLOW_STRAFE_RPM` | `8.0` | Lateral correction during line following |
 | `FSM_RETURN_LINE_FOLLOW_RPM` | `18.0` | Forward speed during return |
 | `FSM_RETURN_TURN_RPM` | `15.0` | Rotation speed for 180° turn |
@@ -177,6 +192,7 @@ All FSM-specific parameters live in `state_machine_config.h`. Global parameters 
 
 | Macro | Default | Description |
 |-------|---------|-------------|
+| `FSM_FORWARD_AFTER_ALIGN_MS` | `2000` | Duration to drive forward after align |
 | `FSM_RETURN_FRONT_TARGET_CM` | `15.0` | Front USS distance to start return maneuver |
 | `FSM_RETURN_TURN_180_MS` | `1300` | Duration of 180° timed turn |
 | `FSM_RETURN_SHIFT_LEFT_30CM_MS` | `1800` | Duration of final left strafe (~30 cm) |
@@ -188,7 +204,7 @@ All FSM-specific parameters live in `state_machine_config.h`. Global parameters 
 | Macro | Default | Description |
 |-------|---------|-------------|
 | `FSM_LAUNCH_CLOCKWISE` | `1` | Stepper direction (1 = CW) |
-| `FSM_LAUNCH_CYCLE_STEPS` | `200` | Steps per launch cycle |
+| `FSM_LAUNCH_CYCLE_STEPS` | `1600` | Steps per launch cycle |
 
 ---
 

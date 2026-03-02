@@ -26,6 +26,7 @@ namespace {
 enum class RobotState : uint8_t {
   IDLE_FOR_LOADING = 0,
   TURN_ALIGN_TO_LEFT_WALL,
+  MOVE_FORWARD_AFTER_ALIGN,
   SHIFT_RIGHT_TO_CENTER_LINE,
   MOVE_FORWARD_TO_HOG_LINE,
   LAUNCH,
@@ -64,6 +65,10 @@ struct Runtime {
   // USS invalid-read consecutive counter.
   uint8_t uss_invalid_consec     = 0;
 
+  // Alignment debounce — consecutive aligned readings required.
+  uint8_t       uss_aligned_consec   = 0;
+  unsigned long last_aligned_check_ms = 0UL;
+
   // LAUNCH guard — prevents restarting a stepper cycle.
   bool launch_started            = false;
 };
@@ -76,6 +81,7 @@ const char* toString(RobotState s) {
   switch (s) {
     case RobotState::IDLE_FOR_LOADING:          return "IDLE_FOR_LOADING";
     case RobotState::TURN_ALIGN_TO_LEFT_WALL:   return "TURN_ALIGN_TO_LEFT_WALL";
+    case RobotState::MOVE_FORWARD_AFTER_ALIGN:  return "MOVE_FORWARD_AFTER_ALIGN";
     case RobotState::SHIFT_RIGHT_TO_CENTER_LINE:return "SHIFT_RIGHT_TO_CENTER_LINE";
     case RobotState::MOVE_FORWARD_TO_HOG_LINE:  return "MOVE_FORWARD_TO_HOG_LINE";
     case RobotState::LAUNCH:                    return "LAUNCH";
@@ -119,6 +125,8 @@ void setState(RobotState next, unsigned long now_ms) {
 
   // Reset per-state runtime fields on entry.
   g_rt.uss_invalid_consec = 0;
+  g_rt.uss_aligned_consec = 0;
+  g_rt.last_aligned_check_ms = now_ms;
 
   if (next == RobotState::RETURN_TO_END_ZONE) {
     g_rt.return_sub  = ReturnSubState::FOLLOW_LINE;
@@ -190,11 +198,20 @@ void handleTurnAlignToLeftWall(const SensorFrame& in, unsigned long now_ms) {
   const float left_diff_cm = in.left_uss_front_cm - in.left_uss_back_cm;
   const bool  front_clear  = !ussFrontTriggered();
 
-  // Aligned + front clear → transition.
+  // Aligned + front clear → require N consecutive hits, rate-limited to USS cycle.
   if ((fabsf(left_diff_cm) <= FSM_PARALLEL_TOLERANCE_CM) && front_clear) {
-    Mobility_StopAll();
-    setState(RobotState::SHIFT_RIGHT_TO_CENTER_LINE, now_ms);
-    return;
+    if ((now_ms - g_rt.last_aligned_check_ms) >= FSM_ALIGN_DEBOUNCE_MS) {
+      g_rt.uss_aligned_consec++;
+      g_rt.last_aligned_check_ms = now_ms;
+    }
+    if (g_rt.uss_aligned_consec >= FSM_ALIGN_CONSEC_REQUIRED) {
+      Mobility_StopAll();
+      setState(RobotState::MOVE_FORWARD_AFTER_ALIGN, now_ms);
+      return;
+    }
+  } else {
+    g_rt.uss_aligned_consec = 0;
+    g_rt.last_aligned_check_ms = now_ms;
   }
 
   // Front not clear → rotate CW away from wall.
@@ -209,6 +226,19 @@ void handleTurnAlignToLeftWall(const SensorFrame& in, unsigned long now_ms) {
   } else {
     Mobility_RotateCW(FSM_ALIGN_ROTATE_RPM);
   }
+}
+
+void handleMoveForwardAfterAlign(const SensorFrame& in, unsigned long now_ms) {
+  stopStepperMotor();
+
+  // Timed forward drive — transition when duration expires.
+  if (stateElapsedMs(now_ms) >= FSM_FORWARD_AFTER_ALIGN_MS) {
+    Mobility_StopAll();
+    setState(RobotState::SHIFT_RIGHT_TO_CENTER_LINE, now_ms);
+    return;
+  }
+
+  Mobility_Drive(FSM_FORWARD_AFTER_ALIGN_RPM, 0.0f, 0.0f);
 }
 
 void handleShiftRightToCenterLine(const SensorFrame& in, unsigned long now_ms) {
@@ -364,6 +394,7 @@ void updateStateMachine() {
 
   // Refresh sensor / actuator caches once per loop.
   const bool need_uss =
+    (g_rt.state == RobotState::IDLE_FOR_LOADING) ||
     (g_rt.state == RobotState::TURN_ALIGN_TO_LEFT_WALL) ||
     ((g_rt.state == RobotState::RETURN_TO_END_ZONE) &&
      (g_rt.return_sub == ReturnSubState::FOLLOW_LINE));
@@ -396,6 +427,7 @@ void updateStateMachine() {
   switch (g_rt.state) {
     case RobotState::IDLE_FOR_LOADING:           handleIdleForLoading(in, now_ms);          break;
     case RobotState::TURN_ALIGN_TO_LEFT_WALL:    handleTurnAlignToLeftWall(in, now_ms);     break;
+    case RobotState::MOVE_FORWARD_AFTER_ALIGN:   handleMoveForwardAfterAlign(in, now_ms);   break;
     case RobotState::SHIFT_RIGHT_TO_CENTER_LINE: handleShiftRightToCenterLine(in, now_ms);  break;
     case RobotState::MOVE_FORWARD_TO_HOG_LINE:   handleMoveForwardToHogLine(in, now_ms);    break;
     case RobotState::LAUNCH:                     handleLaunch(in, now_ms);                  break;

@@ -21,7 +21,7 @@
  * │              │  Encoder 1-4 B                   │  D30–D33       │
  * │              │  E-Stop                          │  D42           │
  * ├──────────────┼──────────────────────────────────┼────────────────┤
- * │  Stepper     │  STEP / DIR                      │  D34, D35      │
+ * │  Stepper     │  STEP / DIR / EN                 │  D34, D35, D53 │
  * ├──────────────┼──────────────────────────────────┼────────────────┤
  * │  USS         │  Ultra 1  Trig / Echo (Front)    │  D36, D37      │
  * │              │  Ultra 2  Trig / Echo (L-Rear)   │  D38, D39      │
@@ -102,5 +102,6 @@
  * ===================================================================== */
 #define STEPPER_STEP_PIN        34
 #define STEPPER_DIR_PIN         35
+#define STEPPER_ENABLE_PIN      53      /* Driver EN (active LOW)    */
 
 #endif  /* PIN_MAP_H */

@@ -16,13 +16,9 @@
  *  Higher = faster but less torque. Lower = slower but more torque.
  *  Typical range for NEMA 17: 200–800 Hz.
  */
-#define STEPPER_STEP_FREQ_HZ      300
+#define STEPPER_STEP_FREQ_HZ      500
 
 /** Default steps per launch cycle (~2 revs for 1.8° stepper = 400 steps) */
 #define STEPPER_LAUNCH_STEPS      400
-
-/** Non-blocking startup delay (ms) — driver settling time after
- *  direction is set, before stepping begins. */
-#define STEPPER_STARTUP_DELAY_MS  200
 
 #endif /* STEPPER_CONFIG_H */

@@ -34,4 +34,16 @@
 #define MOB_PWM_MAX             255
 #define MOB_PWM_DEADZONE        60
 
+/* =====================================================================
+ *  USS — Detection Threshold
+ * ===================================================================== */
+#define USS_THRESHOLD_CM        50.0f
+
+/* =====================================================================
+ *  State Machine — Timing
+ * ===================================================================== */
+#define FSM_LOAD_IDLE_MS        5000UL
+#define FSM_STATE_TIMEOUT_MS    70000UL
+#define FSM_PARALLEL_TOLERANCE_CM  0.2f
+
 #endif  /* CONFIG_H */

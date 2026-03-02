@@ -11,21 +11,32 @@
 
 #include "config.h"
 
-/* ── General / State Control ────────────────────────────────────────── */
+/* ── Launch ────────────────────────────────────────────────────────── */
 
-/** Initial wait time in IDLE state (ms) */
-#define FSM_LOAD_IDLE_MS              5000UL
+/** Stepper launch direction (1 = clockwise, 0 = counter-clockwise) */
+#define FSM_LAUNCH_CLOCKWISE          1
 
-/** Max duration for any single state before entering FAULT (ms) */
-#define FSM_STATE_TIMEOUT_MS          70000UL
+/** Stepper steps per launch cycle */
+#define FSM_LAUNCH_CYCLE_STEPS        1600U
 
 /* ── Alignment ─────────────────────────────────────────────────────── */
 
-/** Max difference between left front/rear sensors for parallel (cm) */
-#define FSM_PARALLEL_TOLERANCE_CM      0.6f
-
 /** Rotation speed while aligning to left wall (RPM) */
 #define FSM_ALIGN_ROTATE_RPM          15.0f
+
+/** Consecutive aligned USS readings required before transition (debounce) */
+#define FSM_ALIGN_CONSEC_REQUIRED     4
+
+/** Minimum ms between debounce counter increments (≥ 1 full USS cycle) */
+#define FSM_ALIGN_DEBOUNCE_MS         50UL
+
+/* ── Forward After Align ───────────────────────────────────────────── */
+
+/** Duration to drive forward after aligning to wall (ms) */
+#define FSM_FORWARD_AFTER_ALIGN_MS    2000UL
+
+/** Forward speed after align (RPM) */
+#define FSM_FORWARD_AFTER_ALIGN_RPM   20.0f
 
 /* ── Shift Right ───────────────────────────────────────────────────── */
 
@@ -75,13 +86,5 @@
 
 /** FAULT status print period while waiting for recovery (ms) */
 #define FSM_FAULT_LOG_INTERVAL_MS    1000UL
-
-/* ── Launch ────────────────────────────────────────────────────────── */
-
-/** Stepper launch direction (1 = clockwise, 0 = counter-clockwise) */
-#define FSM_LAUNCH_CLOCKWISE          1
-
-/** Stepper steps per launch cycle */
-#define FSM_LAUNCH_CYCLE_STEPS        400U
 
 #endif /* STATE_MACHINE_CONFIG_H */

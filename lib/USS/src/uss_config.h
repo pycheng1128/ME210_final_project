@@ -9,7 +9,7 @@
 #include "config.h"
 
 /** Minimum interval between USS readings (ms) */
-#define USS_READ_INTERVAL_MS    80
+#define USS_READ_INTERVAL_MS    50
 
 /** Trigger distance for isTriggered() check (cm) */
 #define USS_THRESHOLD_CM        50.0f
