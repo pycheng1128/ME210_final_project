@@ -22,15 +22,15 @@
 /* ── Alignment ─────────────────────────────────────────────────────── */
 
 /** Rotation speed while aligning to left wall (RPM) */
-#define FSM_ALIGN_ROTATE_RPM          15.0f
+#define FSM_ALIGN_ROTATE_RPM          30.0f
 
 /* ── Shift Right ───────────────────────────────────────────────────── */
 
 /** Right-strafe speed while searching for center line (RPM) */
-#define FSM_SHIFT_RIGHT_RPM           10.0f
+#define FSM_SHIFT_RIGHT_RPM           20.0f
 
 /** Rotational correction applied during right shift (RPM) */
-#define FSM_SHIFT_ROTATE_RPM           6.0f
+#define FSM_SHIFT_ROTATE_RPM           12.0f
 
 /** Re-align with TURN_ALIGN when left USS mismatch exceeds this (cm) */
 #define FSM_SHIFT_REALIGN_DIFF_CM      1.2f
