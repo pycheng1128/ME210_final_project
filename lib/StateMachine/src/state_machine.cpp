@@ -25,6 +25,7 @@ namespace {
 
 enum class RobotState : uint8_t {
   IDLE_FOR_LOADING = 0,
+  PRE_ALIGN_ROTATE_CCW,
   TURN_ALIGN_TO_LEFT_WALL,
   MOVE_FORWARD_AFTER_ALIGN,
   SHIFT_RIGHT_TO_CENTER_LINE,
@@ -35,9 +36,9 @@ enum class RobotState : uint8_t {
 };
 
 enum class ReturnSubState : uint8_t {
-  FOLLOW_LINE = 0,
-  TURN_180,
-  SHIFT_LEFT
+  BACKWARD_TO_LINE = 0,
+  SHIFT_LEFT,
+  STOPPED
 };
 
 /* ── Sensor snapshot ─────────────────────────────────────────────── */
@@ -59,11 +60,8 @@ struct Runtime {
   unsigned long state_enter_ms   = 0UL;
 
   // RETURN_TO_END_ZONE sub-state tracking.
-  ReturnSubState return_sub      = ReturnSubState::FOLLOW_LINE;
+  ReturnSubState return_sub      = ReturnSubState::BACKWARD_TO_LINE;
   unsigned long  sub_enter_ms    = 0UL;
-
-  // USS invalid-read consecutive counter.
-  uint8_t uss_invalid_consec     = 0;
 
   // Alignment debounce — consecutive aligned readings required.
   uint8_t       uss_aligned_consec   = 0;
@@ -80,6 +78,7 @@ Runtime g_rt{};
 const char* toString(RobotState s) {
   switch (s) {
     case RobotState::IDLE_FOR_LOADING:          return "IDLE_FOR_LOADING";
+    case RobotState::PRE_ALIGN_ROTATE_CCW:      return "PRE_ALIGN_ROTATE_CCW";
     case RobotState::TURN_ALIGN_TO_LEFT_WALL:   return "TURN_ALIGN_TO_LEFT_WALL";
     case RobotState::MOVE_FORWARD_AFTER_ALIGN:  return "MOVE_FORWARD_AFTER_ALIGN";
     case RobotState::SHIFT_RIGHT_TO_CENTER_LINE:return "SHIFT_RIGHT_TO_CENTER_LINE";
@@ -124,12 +123,11 @@ void setState(RobotState next, unsigned long now_ms) {
   g_rt.state_enter_ms = now_ms;
 
   // Reset per-state runtime fields on entry.
-  g_rt.uss_invalid_consec = 0;
   g_rt.uss_aligned_consec = 0;
   g_rt.last_aligned_check_ms = now_ms;
 
   if (next == RobotState::RETURN_TO_END_ZONE) {
-    g_rt.return_sub  = ReturnSubState::FOLLOW_LINE;
+    g_rt.return_sub  = ReturnSubState::BACKWARD_TO_LINE;
     g_rt.sub_enter_ms = now_ms;
   }
   if (next == RobotState::LAUNCH) {
@@ -176,24 +174,50 @@ void handleIdleForLoading(const SensorFrame& in, unsigned long now_ms) {
   stopStepperMotor();
 
   if (stateElapsedMs(now_ms) >= FSM_LOAD_IDLE_MS) {
-    setState(RobotState::TURN_ALIGN_TO_LEFT_WALL, now_ms);
+    setState(RobotState::PRE_ALIGN_ROTATE_CCW, now_ms);
   }
+}
+
+void handlePreAlignRotateCcw(const SensorFrame& in, unsigned long now_ms) {
+  stopStepperMotor();
+
+  const bool left_front_valid = (in.left_uss_front_cm > 0.0f);
+  const bool left_back_valid  = (in.left_uss_back_cm > 0.0f);
+  const bool front_invalid    = (in.front_uss_cm <= 0.0f);
+
+  // Enter TURN_ALIGN only after left wall is seen by both left sensors
+  // while front sensor has no echo.
+  if (left_front_valid && left_back_valid && front_invalid) {
+    Mobility_StopAll();
+    setState(RobotState::TURN_ALIGN_TO_LEFT_WALL, now_ms);
+    return;
+  }
+
+  if (stateElapsedMs(now_ms) >= FSM_ALIGN_NO_ECHO_TIMEOUT_MS) {
+    Mobility_StopAll();
+    Serial.println(F("[FSM] PRE_ALIGN timeout — FAULT."));
+    setState(RobotState::FAULT, now_ms);
+    return;
+  }
+
+  // Hardcoded exploration direction.
+  Mobility_RotateCCW(FSM_ALIGN_SEARCH_ROTATE_RPM);
 }
 
 void handleTurnAlignToLeftWall(const SensorFrame& in, unsigned long now_ms) {
   stopStepperMotor();
 
-  // USS validity — fault after N consecutive invalids.
-  if ((in.left_uss_front_cm <= 0.0f) || (in.left_uss_back_cm <= 0.0f)) {
-    g_rt.uss_invalid_consec++;
-    Mobility_StopAll();
-    if (g_rt.uss_invalid_consec >= FSM_USS_FAULT_MAX_CONSEC) {
-      Serial.println(F("[FSM] USS invalid count exceeded — FAULT."));
-      setState(RobotState::FAULT, now_ms);
-    }
+  const bool left_front_valid = (in.left_uss_front_cm > 0.0f);
+  const bool left_back_valid  = (in.left_uss_back_cm > 0.0f);
+
+  // Recovery mode: if either left USS is invalid, keep searching by CCW rotation.
+  if (!left_front_valid || !left_back_valid) {
+    g_rt.uss_aligned_consec = 0;
+    g_rt.last_aligned_check_ms = now_ms;
+
+    Mobility_RotateCCW(FSM_ALIGN_SEARCH_ROTATE_RPM);
     return;
   }
-  g_rt.uss_invalid_consec = 0;
 
   const float left_diff_cm = in.left_uss_front_cm - in.left_uss_back_cm;
   const bool  front_clear  = !ussFrontTriggered();
@@ -308,35 +332,17 @@ void handleReturnToEndZone(const SensorFrame& in, unsigned long now_ms) {
 
   switch (g_rt.return_sub) {
 
-    /* ── FOLLOW_LINE: line-follow until front USS ≤ target ── */
-    case ReturnSubState::FOLLOW_LINE: {
-      const bool reached =
-          (in.front_uss_cm > 0.0f) &&
-          (in.front_uss_cm <= FSM_RETURN_FRONT_TARGET_CM);
-
-      if (reached) {
-        Mobility_StopAll();
-        g_rt.return_sub  = ReturnSubState::TURN_180;
-        g_rt.sub_enter_ms = now_ms;
-        return;
-      }
-
-      Mobility_Drive(FSM_RETURN_LINE_FOLLOW_RPM,
-                     lineFollowStrafeCorrectionRpm(in.line_mask_5b),
-                     0.0f);
-      break;
-    }
-
-    /* ── TURN_180: timed CW rotation ────────────────────── */
-    case ReturnSubState::TURN_180: {
-      if ((now_ms - g_rt.sub_enter_ms) >= FSM_RETURN_TURN_180_MS) {
+    /* ── BACKWARD_TO_LINE: reverse until target line mask appears ── */
+    case ReturnSubState::BACKWARD_TO_LINE: {
+      if (in.line_mask_5b == 0b11100) {
         Mobility_StopAll();
         g_rt.return_sub  = ReturnSubState::SHIFT_LEFT;
         g_rt.sub_enter_ms = now_ms;
         return;
       }
 
-      Mobility_RotateCW(FSM_RETURN_TURN_RPM);
+      // Hardcoded per request: move straight backward until 0b11100.
+      Mobility_Drive(-FSM_RETURN_LINE_FOLLOW_RPM, 0.0f, 0.0f);
       break;
     }
 
@@ -344,11 +350,16 @@ void handleReturnToEndZone(const SensorFrame& in, unsigned long now_ms) {
     case ReturnSubState::SHIFT_LEFT: {
       if ((now_ms - g_rt.sub_enter_ms) >= FSM_RETURN_SHIFT_LEFT_30CM_MS) {
         Mobility_StopAll();
-        setState(RobotState::IDLE_FOR_LOADING, now_ms);
+        g_rt.return_sub = ReturnSubState::STOPPED;
         return;
       }
 
       Mobility_StrafeLeft(FSM_RETURN_SHIFT_LEFT_RPM);
+      break;
+    }
+
+    case ReturnSubState::STOPPED: {
+      Mobility_StopAll();
       break;
     }
 
@@ -395,9 +406,8 @@ void updateStateMachine() {
   // Refresh sensor / actuator caches once per loop.
   const bool need_uss =
     (g_rt.state == RobotState::IDLE_FOR_LOADING) ||
-    (g_rt.state == RobotState::TURN_ALIGN_TO_LEFT_WALL) ||
-    ((g_rt.state == RobotState::RETURN_TO_END_ZONE) &&
-     (g_rt.return_sub == ReturnSubState::FOLLOW_LINE));
+    (g_rt.state == RobotState::PRE_ALIGN_ROTATE_CCW) ||
+    (g_rt.state == RobotState::TURN_ALIGN_TO_LEFT_WALL);
 
   if (need_uss) {
     updateUss();
@@ -426,6 +436,7 @@ void updateStateMachine() {
   /* ── Dispatch to per-state handler ──────────────────────────── */
   switch (g_rt.state) {
     case RobotState::IDLE_FOR_LOADING:           handleIdleForLoading(in, now_ms);          break;
+    case RobotState::PRE_ALIGN_ROTATE_CCW:       handlePreAlignRotateCcw(in, now_ms);       break;
     case RobotState::TURN_ALIGN_TO_LEFT_WALL:    handleTurnAlignToLeftWall(in, now_ms);     break;
     case RobotState::MOVE_FORWARD_AFTER_ALIGN:   handleMoveForwardAfterAlign(in, now_ms);   break;
     case RobotState::SHIFT_RIGHT_TO_CENTER_LINE: handleShiftRightToCenterLine(in, now_ms);  break;

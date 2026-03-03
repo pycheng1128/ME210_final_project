@@ -25,10 +25,16 @@
 #define FSM_ALIGN_ROTATE_RPM          15.0f
 
 /** Consecutive aligned USS readings required before transition (debounce) */
-#define FSM_ALIGN_CONSEC_REQUIRED     4
+#define FSM_ALIGN_CONSEC_REQUIRED     5
 
 /** Minimum ms between debounce counter increments (≥ 1 full USS cycle) */
 #define FSM_ALIGN_DEBOUNCE_MS         50UL
+
+/** Rotation speed used while searching for wall when both left USS read no-echo */
+#define FSM_ALIGN_SEARCH_ROTATE_RPM   12.0f
+
+/** Max continuous no-echo search time before entering FAULT (ms) */
+#define FSM_ALIGN_NO_ECHO_TIMEOUT_MS  15000UL
 
 /* ── Forward After Align ───────────────────────────────────────────── */
 

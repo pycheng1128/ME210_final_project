@@ -44,6 +44,6 @@
  * ===================================================================== */
 #define FSM_LOAD_IDLE_MS        5000UL
 #define FSM_STATE_TIMEOUT_MS    70000UL
-#define FSM_PARALLEL_TOLERANCE_CM  0.2f
+#define FSM_PARALLEL_TOLERANCE_CM  0.3f
 
 #endif  /* CONFIG_H */
