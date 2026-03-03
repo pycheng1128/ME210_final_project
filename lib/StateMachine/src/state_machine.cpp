@@ -62,6 +62,12 @@ struct Runtime {
   // RETURN_TO_END_ZONE sub-state tracking.
   ReturnSubState return_sub      = ReturnSubState::BACKWARD_TO_LINE;
   unsigned long  sub_enter_ms    = 0UL;
+  uint8_t       return_line_consec       = 0;
+  unsigned long return_last_line_check_ms = 0UL;
+
+  // PRE_ALIGN debounce — consecutive wall-detected readings required.
+  uint8_t       pre_align_consec       = 0;
+  unsigned long pre_align_last_check_ms = 0UL;
 
   // Alignment debounce — consecutive aligned readings required.
   uint8_t       uss_aligned_consec   = 0;
@@ -69,6 +75,9 @@ struct Runtime {
 
   // LAUNCH guard — prevents restarting a stepper cycle.
   bool launch_started            = false;
+
+  // Set after first alignment — skip PRE_ALIGN/TURN_ALIGN on later cycles.
+  bool has_aligned               = false;
 };
 
 Runtime g_rt{};
@@ -123,15 +132,22 @@ void setState(RobotState next, unsigned long now_ms) {
   g_rt.state_enter_ms = now_ms;
 
   // Reset per-state runtime fields on entry.
-  g_rt.uss_aligned_consec = 0;
-  g_rt.last_aligned_check_ms = now_ms;
+  g_rt.pre_align_consec        = 0;
+  g_rt.pre_align_last_check_ms = now_ms;
+  g_rt.uss_aligned_consec      = 0;
+  g_rt.last_aligned_check_ms   = now_ms;
 
   if (next == RobotState::RETURN_TO_END_ZONE) {
     g_rt.return_sub  = ReturnSubState::BACKWARD_TO_LINE;
     g_rt.sub_enter_ms = now_ms;
+    g_rt.return_line_consec = 0;
+    g_rt.return_last_line_check_ms = now_ms;
   }
   if (next == RobotState::LAUNCH) {
     g_rt.launch_started = false;
+  }
+  if (next == RobotState::MOVE_FORWARD_AFTER_ALIGN) {
+    g_rt.has_aligned = true;
   }
 
   Serial.print(F("[FSM] Enter -> "));
@@ -174,23 +190,41 @@ void handleIdleForLoading(const SensorFrame& in, unsigned long now_ms) {
   stopStepperMotor();
 
   if (stateElapsedMs(now_ms) >= FSM_LOAD_IDLE_MS) {
-    setState(RobotState::PRE_ALIGN_ROTATE_CCW, now_ms);
+    if (g_rt.has_aligned) {
+      // Already aligned from a previous cycle — skip straight to forward.
+      setState(RobotState::MOVE_FORWARD_AFTER_ALIGN, now_ms);
+    } else {
+      setState(RobotState::PRE_ALIGN_ROTATE_CCW, now_ms);
+    }
   }
 }
 
 void handlePreAlignRotateCcw(const SensorFrame& in, unsigned long now_ms) {
   stopStepperMotor();
 
-  const bool left_front_valid = (in.left_uss_front_cm > 0.0f);
-  const bool left_back_valid  = (in.left_uss_back_cm > 0.0f);
-  const bool front_invalid    = (in.front_uss_cm <= 0.0f);
+  // Both left sensors must return a valid reading within trigger range
+  // to count as "wall detected", AND the front sensor must have no echo.
+  const bool left_front_in_range = (in.left_uss_front_cm > 0.0f)
+                                && (in.left_uss_front_cm < USS_THRESHOLD_CM);
+  const bool left_back_in_range  = (in.left_uss_back_cm > 0.0f)
+                                && (in.left_uss_back_cm < USS_THRESHOLD_CM);
+  const bool front_no_echo       = (in.front_uss_cm <= 0.0f);
 
-  // Enter TURN_ALIGN only after left wall is seen by both left sensors
-  // while front sensor has no echo.
-  if (left_front_valid && left_back_valid && front_invalid) {
-    Mobility_StopAll();
-    setState(RobotState::TURN_ALIGN_TO_LEFT_WALL, now_ms);
-    return;
+  // Debounce: require FSM_PRE_ALIGN_CONSEC_REQUIRED consecutive hits,
+  // rate-limited to one check per USS cycle, to avoid stale-data glitches.
+  if (left_front_in_range && left_back_in_range && front_no_echo) {
+    if ((now_ms - g_rt.pre_align_last_check_ms) >= FSM_ALIGN_DEBOUNCE_MS) {
+      g_rt.pre_align_consec++;
+      g_rt.pre_align_last_check_ms = now_ms;
+    }
+    if (g_rt.pre_align_consec >= FSM_PRE_ALIGN_CONSEC_REQUIRED) {
+      Mobility_StopAll();
+      setState(RobotState::TURN_ALIGN_TO_LEFT_WALL, now_ms);
+      return;
+    }
+  } else {
+    g_rt.pre_align_consec = 0;
+    g_rt.pre_align_last_check_ms = now_ms;
   }
 
   if (stateElapsedMs(now_ms) >= FSM_ALIGN_NO_ECHO_TIMEOUT_MS) {
@@ -327,39 +361,50 @@ void handleLaunch(const SensorFrame& in, unsigned long now_ms) {
   updateStepperMotor();
 }
 
+bool isReturnEndLineMask(uint8_t mask) {
+  return mask == 0b11000
+      || mask == 0b11100
+      || mask == 0b11110;
+}
+
 void handleReturnToEndZone(const SensorFrame& in, unsigned long now_ms) {
   stopStepperMotor();
 
   switch (g_rt.return_sub) {
 
-    /* ── BACKWARD_TO_LINE: reverse until target line mask appears ── */
+    /* ── BACKWARD_TO_LINE: reverse with line-follow until left-side line detected ── */
     case ReturnSubState::BACKWARD_TO_LINE: {
-      if (in.line_mask_5b == 0b11100) {
-        Mobility_StopAll();
-        g_rt.return_sub  = ReturnSubState::SHIFT_LEFT;
-        g_rt.sub_enter_ms = now_ms;
-        return;
+      // Debounce: require N consecutive left-side line detections.
+      if (isReturnEndLineMask(in.line_mask_5b)) {
+        if ((now_ms - g_rt.return_last_line_check_ms) >= FSM_ALIGN_DEBOUNCE_MS) {
+          g_rt.return_line_consec++;
+          g_rt.return_last_line_check_ms = now_ms;
+        }
+        if (g_rt.return_line_consec >= FSM_RETURN_LINE_CONSEC_REQUIRED) {
+          Mobility_StopAll();
+          g_rt.return_sub   = ReturnSubState::SHIFT_LEFT;
+          g_rt.sub_enter_ms = now_ms;
+          return;
+        }
+      } else {
+        g_rt.return_line_consec = 0;
+        g_rt.return_last_line_check_ms = now_ms;
       }
 
-      // Hardcoded per request: move straight backward until 0b11100.
-      Mobility_Drive(-FSM_RETURN_LINE_FOLLOW_RPM, 0.0f, 0.0f);
+      Mobility_Drive(-FSM_RETURN_LINE_FOLLOW_RPM,
+                     lineFollowStrafeCorrectionRpm(in.line_mask_5b),
+                     0.0f);
       break;
     }
 
-    /* ── SHIFT_LEFT: timed left strafe ──────────────────── */
+    /* ── SHIFT_LEFT: timed left strafe, then back to IDLE ── */
     case ReturnSubState::SHIFT_LEFT: {
       if ((now_ms - g_rt.sub_enter_ms) >= FSM_RETURN_SHIFT_LEFT_30CM_MS) {
         Mobility_StopAll();
-        g_rt.return_sub = ReturnSubState::STOPPED;
+        setState(RobotState::IDLE_FOR_LOADING, now_ms);
         return;
       }
-
       Mobility_StrafeLeft(FSM_RETURN_SHIFT_LEFT_RPM);
-      break;
-    }
-
-    case ReturnSubState::STOPPED: {
-      Mobility_StopAll();
       break;
     }
 

@@ -24,8 +24,11 @@
 /** Rotation speed while aligning to left wall (RPM) */
 #define FSM_ALIGN_ROTATE_RPM          15.0f
 
+/** Consecutive wall-detected readings in PRE_ALIGN before entering TURN_ALIGN */
+#define FSM_PRE_ALIGN_CONSEC_REQUIRED 5
+
 /** Consecutive aligned USS readings required before transition (debounce) */
-#define FSM_ALIGN_CONSEC_REQUIRED     5
+#define FSM_ALIGN_CONSEC_REQUIRED     4
 
 /** Minimum ms between debounce counter increments (≥ 1 full USS cycle) */
 #define FSM_ALIGN_DEBOUNCE_MS         50UL
@@ -34,7 +37,7 @@
 #define FSM_ALIGN_SEARCH_ROTATE_RPM   12.0f
 
 /** Max continuous no-echo search time before entering FAULT (ms) */
-#define FSM_ALIGN_NO_ECHO_TIMEOUT_MS  15000UL
+#define FSM_ALIGN_NO_ECHO_TIMEOUT_MS  80000UL
 
 /* ── Forward After Align ───────────────────────────────────────────── */
 
@@ -58,7 +61,7 @@
 /* ── Forward / Line Follow ─────────────────────────────────────────── */
 
 /** Forward speed while approaching hog line (RPM) */
-#define FSM_FORWARD_TO_HOG_RPM        30.0f
+#define FSM_FORWARD_TO_HOG_RPM        20.0f
 
 /** Lateral correction magnitude for line following (RPM) */
 #define FSM_LINE_FOLLOW_STRAFE_RPM     8.0f
@@ -69,7 +72,10 @@
 #define FSM_RETURN_FRONT_TARGET_CM    15.0f
 
 /** Return line-follow forward speed (RPM) */
-#define FSM_RETURN_LINE_FOLLOW_RPM    18.0f
+#define FSM_RETURN_LINE_FOLLOW_RPM   25.0f
+
+/** Consecutive left-side line detections before transitioning to shift-left */
+#define FSM_RETURN_LINE_CONSEC_REQUIRED 3
 
 /** Rotation speed during 180-degree turn (RPM) */
 #define FSM_RETURN_TURN_RPM           15.0f
@@ -81,7 +87,7 @@
 #define FSM_RETURN_SHIFT_LEFT_RPM     15.0f
 
 /** Duration for ~30 cm left strafe (ms, tune on robot) */
-#define FSM_RETURN_SHIFT_LEFT_30CM_MS 1800UL
+#define FSM_RETURN_SHIFT_LEFT_30CM_MS 3500UL
 
 /* ── USS Fault ─────────────────────────────────────────────────────── */
 

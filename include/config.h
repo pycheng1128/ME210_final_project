@@ -15,7 +15,7 @@
 #define SERIAL_BAUD             115200
 #define MOB_DEBUG_PRINT         0
 #define MOB_DEBUG_INTERVAL_MS   100
-#define USS_DEBUG_PRINT         1
+#define USS_DEBUG_PRINT         0
 #define USS_DEBUG_INTERVAL_MS   200
 #define LINE_DEBUG_PRINT        0
 #define LINE_DEBUG_INTERVAL_MS  200
@@ -44,6 +44,6 @@
  * ===================================================================== */
 #define FSM_LOAD_IDLE_MS        5000UL
 #define FSM_STATE_TIMEOUT_MS    70000UL
-#define FSM_PARALLEL_TOLERANCE_CM  0.3f
+#define FSM_PARALLEL_TOLERANCE_CM  0.4f
 
 #endif  /* CONFIG_H */

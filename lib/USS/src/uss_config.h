@@ -15,6 +15,6 @@
 #define USS_THRESHOLD_CM        50.0f
 
 /** Pulse timeout — max echo wait (~517 cm) */
-#define USS_PULSE_TIMEOUT_US    30000UL
+#define USS_PULSE_TIMEOUT_US    10000UL
 
 #endif /* USS_CONFIG_H */
