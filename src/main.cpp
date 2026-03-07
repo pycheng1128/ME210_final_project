@@ -22,8 +22,8 @@ void setup() {
 }
 
 void loop() {
-  updateStateMachine();
   Mobility_Update();
+  updateStateMachine();
 }
 
 #endif  // !ENABLE_MOBILITY_TEST_APP
