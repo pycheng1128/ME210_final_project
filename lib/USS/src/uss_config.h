@@ -18,7 +18,7 @@
 #define USS_LEFT_THRESHOLD_CM        50.0f
 
 /** Trigger distance for front isTriggered() check (cm) */
-#define USS_FRONT_THRESHOLD_CM       150.0f
+#define USS_FRONT_THRESHOLD_CM       2000.0f
 
 /** Pulse timeout — Max echo wait for Left USS during Pre-Align (~171 cm = 10000us) */
 #define USS_LEFT_PULSE_TIMEOUT_DEFAULT_US    80000UL
