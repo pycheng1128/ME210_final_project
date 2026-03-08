@@ -14,6 +14,7 @@
 #include <mobility_driver.h>
 #include <stepper_motor.h>
 #include <uss.h>
+#include <uss_config.h>
 #include <math.h>
 
 #include "state_machine.h"
@@ -68,6 +69,7 @@ struct Runtime {
   // PRE_ALIGN debounce — consecutive wall-detected readings required.
   uint8_t       pre_align_consec       = 0;
   unsigned long pre_align_last_check_ms = 0UL;
+  bool          pre_align_cw           = false; // rotation direction, set on entry
 
   // Alignment debounce — consecutive aligned readings required.
   uint8_t       uss_aligned_consec   = 0;
@@ -149,6 +151,15 @@ void setState(RobotState next, unsigned long now_ms) {
   if (next == RobotState::MOVE_FORWARD_AFTER_ALIGN) {
     g_rt.has_aligned = true;
   }
+  if (next == RobotState::PRE_ALIGN_ROTATE_CCW) {
+    const float lf = ussLeftFrontCm();
+    const float lb = ussLeftRearCm();
+    const float fr = ussFrontCm();
+    g_rt.pre_align_cw =
+        (lf > 0.0f && lf <= FSM_PRE_ALIGN_CLOSE_RANGE_CM)
+     && (lb > 0.0f && lb <= FSM_PRE_ALIGN_CLOSE_RANGE_CM)
+     && (fr > 0.0f && fr <= FSM_PRE_ALIGN_CLOSE_RANGE_CM);
+  }
 
   Serial.print(F("[FSM] Enter -> "));
   Serial.println(toString(g_rt.state));
@@ -202,17 +213,19 @@ void handleIdleForLoading(const SensorFrame& in, unsigned long now_ms) {
 void handlePreAlignRotateCcw(const SensorFrame& in, unsigned long now_ms) {
   stopStepperMotor();
 
-  // Both left sensors must return a valid reading within trigger range
-  // to count as "wall detected", AND the front sensor must have no echo.
+  // Both left sensors must return a valid, small, and similar reading,
+  // AND the front sensor must be clear (no echo or far away).
   const bool left_front_in_range = (in.left_uss_front_cm > 0.0f)
-                                && (in.left_uss_front_cm < USS_THRESHOLD_CM);
+                                && (in.left_uss_front_cm < USS_LEFT_THRESHOLD_CM);
   const bool left_back_in_range  = (in.left_uss_back_cm > 0.0f)
-                                && (in.left_uss_back_cm < USS_THRESHOLD_CM);
-  const bool front_no_echo       = (in.front_uss_cm <= 0.0f);
+                                && (in.left_uss_back_cm < USS_LEFT_THRESHOLD_CM);
+  const bool left_wall_detected  = left_front_in_range && left_back_in_range;
+  const bool front_clear         = (in.front_uss_cm <= 0.0f)
+                                || (in.front_uss_cm >= FSM_PRE_ALIGN_FRONT_FAR_CM);
 
   // Debounce: require FSM_PRE_ALIGN_CONSEC_REQUIRED consecutive hits,
   // rate-limited to one check per USS cycle, to avoid stale-data glitches.
-  if (left_front_in_range && left_back_in_range && front_no_echo) {
+  if (left_wall_detected && front_clear) {
     if ((now_ms - g_rt.pre_align_last_check_ms) >= FSM_ALIGN_DEBOUNCE_MS) {
       g_rt.pre_align_consec++;
       g_rt.pre_align_last_check_ms = now_ms;
@@ -234,8 +247,12 @@ void handlePreAlignRotateCcw(const SensorFrame& in, unsigned long now_ms) {
     return;
   }
 
-  // Hardcoded exploration direction.
-  Mobility_RotateCCW(FSM_ALIGN_SEARCH_ROTATE_RPM);
+  // Direction was decided once on state entry (in setState).
+  if (g_rt.pre_align_cw) {
+    Mobility_RotateCW(FSM_ALIGN_SEARCH_ROTATE_RPM);
+  } else {
+    Mobility_RotateCCW(FSM_ALIGN_SEARCH_ROTATE_RPM);
+  }
 }
 
 void handleTurnAlignToLeftWall(const SensorFrame& in, unsigned long now_ms) {
@@ -449,13 +466,22 @@ void updateStateMachine() {
   const unsigned long now_ms = millis();
 
   // Refresh sensor / actuator caches once per loop.
-  const bool need_uss =
+  const bool need_left_uss =
     (g_rt.state == RobotState::IDLE_FOR_LOADING) ||
     (g_rt.state == RobotState::PRE_ALIGN_ROTATE_CCW) ||
     (g_rt.state == RobotState::TURN_ALIGN_TO_LEFT_WALL);
 
-  if (need_uss) {
-    updateUss();
+  if (need_left_uss) {
+    if (g_rt.state == RobotState::TURN_ALIGN_TO_LEFT_WALL) {
+      updateLeftUss(USS_LEFT_PULSE_TIMEOUT_ALIGN_US);
+    } else {
+      updateLeftUss();
+    }
+  }
+
+  // Only update front USS when searching for wall or loading to prevent false-0 distorts in TURN_ALIGN
+  if (g_rt.state == RobotState::PRE_ALIGN_ROTATE_CCW || g_rt.state == RobotState::IDLE_FOR_LOADING) {
+    updateFrontUss();
   }
   updateLineSensor();
 

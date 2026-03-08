@@ -1,9 +1,11 @@
 #pragma once
 
 #include <Arduino.h>
+#include "uss_config.h"
 
 void initUss();
-void updateUss();
+void updateLeftUss(unsigned long timeout_us = USS_LEFT_PULSE_TIMEOUT_DEFAULT_US);
+void updateFrontUss();
 
 float ussLeftFrontCm();
 float ussLeftRearCm();

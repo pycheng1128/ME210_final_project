@@ -16,14 +16,15 @@ struct UssSnapshot {
 
 // Create UssSnapShot instance
 UssSnapshot g_last{};
-unsigned long g_last_read_ms = 0UL;
-uint8_t g_uss_index = 0;       // round-robin sensor index (0, 1, 2)
+unsigned long g_last_left_read_ms = 0UL;
+unsigned long g_last_front_read_ms = 0UL;
+uint8_t g_left_uss_index = 0;       // round-robin sensor index (0, 1)
 
 #if USS_DEBUG_PRINT
 unsigned long g_last_debug_ms = 0UL;
 #endif
 
-float readDistanceCm(uint8_t trig_pin, uint8_t echo_pin) {
+float readDistanceCm(uint8_t trig_pin, uint8_t echo_pin, unsigned long timeout_us) {
     // sends a short trigger pulse on trig_pin
   digitalWrite(trig_pin, LOW);
   delayMicroseconds(2);
@@ -32,7 +33,7 @@ float readDistanceCm(uint8_t trig_pin, uint8_t echo_pin) {
   digitalWrite(trig_pin, LOW);
 
   // Measure how long the echo_pin stays high in microsecond
-  const unsigned long pulse_us = pulseIn(echo_pin, HIGH, USS_PULSE_TIMEOUT_US);
+  const unsigned long pulse_us = pulseIn(echo_pin, HIGH, timeout_us);
   if (pulse_us == 0) {
     return 0.0f;
   }
@@ -40,8 +41,8 @@ float readDistanceCm(uint8_t trig_pin, uint8_t echo_pin) {
   return pulse_us / 58.3f;
 }
 
-bool isTriggered(float distance_cm) {
-  return (distance_cm > 0.0f) && (distance_cm < USS_THRESHOLD_CM);
+bool isTriggered(float distance_cm, float threshold_cm) {
+  return (distance_cm > 0.0f) && (distance_cm < threshold_cm);
 }
 
 }  // namespace
@@ -60,32 +61,27 @@ void initUss() {
   digitalWrite(USS_FRONT_TRIG, LOW);
 }
 
-// Update ONE USS sensor per call (round-robin) to avoid 90ms blocking.
-// All 3 sensors are refreshed within 3 × USS_READ_INTERVAL_MS.
-void updateUss() {
-    // Don't change g_last if interval is short
+// Update ONE left USS sensor per call (round-robin) to avoid 90ms blocking.
+// Both left sensors are refreshed within 2 × USS_LEFT_READ_INTERVAL_MS.
+void updateLeftUss(unsigned long timeout_us) {
   const unsigned long now_ms = millis();
-  if ((now_ms - g_last_read_ms) < USS_READ_INTERVAL_MS) {
+  if ((now_ms - g_last_left_read_ms) < USS_LEFT_READ_INTERVAL_MS) {
     return;
   }
-  g_last_read_ms = now_ms;
+  g_last_left_read_ms = now_ms;
 
-  switch (g_uss_index) {
+  switch (g_left_uss_index) {
     case 0:
-      g_last.left_front_cm = readDistanceCm(USS_LEFT_FRONT_TRIG, USS_LEFT_FRONT_ECHO);
-      g_last.left_front_triggered = isTriggered(g_last.left_front_cm);
+      g_last.left_front_cm = readDistanceCm(USS_LEFT_FRONT_TRIG, USS_LEFT_FRONT_ECHO, timeout_us);
+      g_last.left_front_triggered = isTriggered(g_last.left_front_cm, USS_LEFT_THRESHOLD_CM);
       break;
     case 1:
-      g_last.left_rear_cm = readDistanceCm(USS_LEFT_REAR_TRIG, USS_LEFT_REAR_ECHO);
-      g_last.left_rear_triggered = isTriggered(g_last.left_rear_cm);
-      break;
-    case 2:
-      g_last.front_cm = readDistanceCm(USS_FRONT_TRIG, USS_FRONT_ECHO);
-      g_last.front_triggered = isTriggered(g_last.front_cm);
+      g_last.left_rear_cm = readDistanceCm(USS_LEFT_REAR_TRIG, USS_LEFT_REAR_ECHO, timeout_us);
+      g_last.left_rear_triggered = isTriggered(g_last.left_rear_cm, USS_LEFT_THRESHOLD_CM);
       break;
   }
 
-  g_uss_index = (g_uss_index + 1) % 3;
+  g_left_uss_index = (g_left_uss_index + 1) % 2;
 
 #if USS_DEBUG_PRINT
   if ((now_ms - g_last_debug_ms) >= USS_DEBUG_INTERVAL_MS) {
@@ -104,6 +100,18 @@ void updateUss() {
     Serial.println(g_last.front_triggered);
   }
 #endif
+}
+
+// Update the front USS sensor independently with a lower frequency
+void updateFrontUss() {
+  const unsigned long now_ms = millis();
+  if ((now_ms - g_last_front_read_ms) < USS_FRONT_READ_INTERVAL_MS) {
+    return;
+  }
+  g_last_front_read_ms = now_ms;
+
+  g_last.front_cm = readDistanceCm(USS_FRONT_TRIG, USS_FRONT_ECHO, USS_FRONT_PULSE_TIMEOUT_US);
+  g_last.front_triggered = isTriggered(g_last.front_cm, USS_FRONT_THRESHOLD_CM);
 }
 
 float ussLeftFrontCm() {

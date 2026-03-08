@@ -36,6 +36,12 @@
 /** Rotation speed used while searching for wall when both left USS read no-echo */
 #define FSM_ALIGN_SEARCH_ROTATE_RPM   12.0f
 
+/** All-USS close-range threshold for choosing CW vs CCW in PRE_ALIGN (cm) */
+#define FSM_PRE_ALIGN_CLOSE_RANGE_CM  40.0f
+
+/** Front USS distance considered "far / clear" for PRE_ALIGN transition (cm) */
+#define FSM_PRE_ALIGN_FRONT_FAR_CM    100.0f
+
 /** Max continuous no-echo search time before entering FAULT (ms) */
 #define FSM_ALIGN_NO_ECHO_TIMEOUT_MS  80000UL
 
