@@ -22,8 +22,9 @@
 #define MOB_MOTOR_4_INV         1.0f   /* Back-Right  */
 
 /* =====================================================================
- *  Motor Specifications
+ *  Motor / Wheel Specifications
  * ===================================================================== */
+#define MOB_WHEEL_DIAMETER_MM   80.0f
 #define MOB_ENCODER_PPR         1176.0f
 #define MOB_MAX_RPM             60.0f
 #define MOB_DEFAULT_TARGET_RPM  50.0f

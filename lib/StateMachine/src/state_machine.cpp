@@ -36,9 +36,17 @@ enum class RobotState : uint8_t {
 };
 
 enum class ReturnSubState : uint8_t {
-  BACKWARD_TO_LINE = 0,
+  BACKWARD_SPEEDUP = 0,  // High-speed backward for speedup distance
+  RECENTER,              // Strafe back to center line (cycle 2/3 only)
+  BACKWARD_TO_LINE,      // Normal backward with line-follow
   SHIFT_LEFT,
   STOPPED
+};
+
+enum class FwdHogSubState : uint8_t {
+  SPEEDUP = 0,        // High-speed forward phase
+  LATERAL_SHIFT,      // Strafe left/right (cycle 2/3 only)
+  LINE_FOLLOW         // Normal speed line-follow to hogline
 };
 
 /* ── Sensor snapshot ─────────────────────────────────────────────── */
@@ -78,6 +86,15 @@ struct Runtime {
 
   // Set after first alignment — skip PRE_ALIGN/TURN_ALIGN on later cycles.
   bool has_aligned               = false;
+
+  // Speed-up phase: encoder snapshot at state entry.
+  long fwd_start_encoder         = 0L;
+  long ret_start_encoder         = 0L;
+
+  // MOVE_FORWARD_TO_HOG_LINE sub-state tracking.
+  uint8_t        hogline_cycle         = 0;
+  FwdHogSubState fwd_hog_sub           = FwdHogSubState::SPEEDUP;
+  long           lateral_start_encoder = 0L;
 };
 
 Runtime g_rt{};
@@ -137,11 +154,17 @@ void setState(RobotState next, unsigned long now_ms) {
   g_rt.uss_aligned_consec      = 0;
   g_rt.last_aligned_check_ms   = now_ms;
 
+  if (next == RobotState::MOVE_FORWARD_TO_HOG_LINE) {
+    g_rt.fwd_start_encoder = Mobility_GetEncoderCount(MOB_FL);
+    g_rt.fwd_hog_sub       = FwdHogSubState::SPEEDUP;
+    g_rt.hogline_cycle++;
+  }
   if (next == RobotState::RETURN_TO_END_ZONE) {
-    g_rt.return_sub  = ReturnSubState::BACKWARD_TO_LINE;
+    g_rt.return_sub  = ReturnSubState::BACKWARD_SPEEDUP;
     g_rt.sub_enter_ms = now_ms;
     g_rt.return_line_consec = 0;
     g_rt.return_last_line_check_ms = now_ms;
+    g_rt.ret_start_encoder = Mobility_GetEncoderCount(MOB_FL);
   }
   if (next == RobotState::LAUNCH) {
     g_rt.launch_started = false;
@@ -327,16 +350,61 @@ void handleShiftRightToCenterLine(const SensorFrame& in, unsigned long now_ms) {
 void handleMoveForwardToHogLine(const SensorFrame& in, unsigned long now_ms) {
   stopStepperMotor();
 
-  // Hog line = all 5 sensors see black.
+  // Hog line = all 5 sensors see black → transition regardless of sub-state.
   if (in.line_mask_5b == 0b11111) {
     Mobility_StopAll();
     setState(RobotState::LAUNCH, now_ms);
     return;
   }
 
-  Mobility_Drive(FSM_FORWARD_TO_HOG_RPM,
-                 lineFollowStrafeCorrectionRpm(in.line_mask_5b),
-                 0.0f);
+  switch (g_rt.fwd_hog_sub) {
+
+    /* ── SPEEDUP: high-speed forward for FSM_SPEEDUP_DISTANCE_CM ── */
+    case FwdHogSubState::SPEEDUP: {
+      const long enc_traveled = labs(Mobility_GetEncoderCount(MOB_FL) - g_rt.fwd_start_encoder);
+      if (enc_traveled >= FSM_SPEEDUP_ENCODER_COUNTS) {
+        Mobility_StopAll();
+        // Cycle 2 → shift left, cycle 3 → shift right, otherwise skip.
+        if (g_rt.hogline_cycle == 2 || g_rt.hogline_cycle == 3) {
+          g_rt.fwd_hog_sub = FwdHogSubState::LATERAL_SHIFT;
+          g_rt.lateral_start_encoder = Mobility_GetEncoderCount(MOB_FL);
+        } else {
+          g_rt.fwd_hog_sub = FwdHogSubState::LINE_FOLLOW;
+        }
+        return;
+      }
+
+      Mobility_Drive(FSM_SPEEDUP_RPM,
+                     lineFollowStrafeCorrectionRpm(in.line_mask_5b),
+                     0.0f);
+      break;
+    }
+
+    /* ── LATERAL_SHIFT: strafe left (cycle 2) or right (cycle 3) ── */
+    case FwdHogSubState::LATERAL_SHIFT: {
+      const long lat_traveled = labs(Mobility_GetEncoderCount(MOB_FL) - g_rt.lateral_start_encoder);
+      if (lat_traveled >= FSM_LATERAL_SHIFT_ENCODER_COUNTS) {
+        Mobility_StopAll();
+        g_rt.fwd_hog_sub = FwdHogSubState::LINE_FOLLOW;
+        return;
+      }
+
+      // Cycle 2 → left (+vy), cycle 3 → right (-vy).
+      const float strafe_vy = (g_rt.hogline_cycle == 2)
+                              ? FSM_LATERAL_SHIFT_RPM
+                              : -FSM_LATERAL_SHIFT_RPM;
+      Mobility_Drive(0.0f, strafe_vy, 0.0f);
+      break;
+    }
+
+    /* ── LINE_FOLLOW: normal speed with line-follow correction ── */
+    case FwdHogSubState::LINE_FOLLOW: {
+      Mobility_Drive(FSM_FORWARD_TO_HOG_RPM,
+                     lineFollowStrafeCorrectionRpm(in.line_mask_5b),
+                     0.0f);
+      break;
+    }
+  }
 }
 
 void handleLaunch(const SensorFrame& in, unsigned long now_ms) {
@@ -372,7 +440,45 @@ void handleReturnToEndZone(const SensorFrame& in, unsigned long now_ms) {
 
   switch (g_rt.return_sub) {
 
-    /* ── BACKWARD_TO_LINE: reverse with line-follow until left-side line detected ── */
+    /* ── BACKWARD_SPEEDUP: fast backward for FSM_SPEEDUP_DISTANCE_CM ── */
+    case ReturnSubState::BACKWARD_SPEEDUP: {
+      const long ret_traveled = labs(Mobility_GetEncoderCount(MOB_FL) - g_rt.ret_start_encoder);
+      if (ret_traveled >= FSM_SPEEDUP_ENCODER_COUNTS) {
+        Mobility_StopAll();
+        // Cycle 2/3 shifted laterally → recenter before continuing.
+        if (g_rt.hogline_cycle == 2 || g_rt.hogline_cycle == 3) {
+          g_rt.return_sub = ReturnSubState::RECENTER;
+        } else {
+          g_rt.return_sub = ReturnSubState::BACKWARD_TO_LINE;
+        }
+        return;
+      }
+
+      Mobility_Drive(-FSM_SPEEDUP_RPM,
+                     lineFollowStrafeCorrectionRpm(in.line_mask_5b),
+                     0.0f);
+      break;
+    }
+
+    /* ── RECENTER: strafe back to center line using line sensor ── */
+    case ReturnSubState::RECENTER: {
+      const bool centered = (in.line_mask_5b == 0b00100) || (in.line_mask_5b == 0b01110);
+      if (centered) {
+        Mobility_StopAll();
+        g_rt.return_sub = ReturnSubState::BACKWARD_TO_LINE;
+        return;
+      }
+
+      // Cycle 2 shifted left on forward → shift right to recenter.
+      // Cycle 3 shifted right on forward → shift left to recenter.
+      const float strafe_vy = (g_rt.hogline_cycle == 2)
+                              ? -FSM_LATERAL_SHIFT_RPM
+                              :  FSM_LATERAL_SHIFT_RPM;
+      Mobility_Drive(0.0f, strafe_vy, 0.0f);
+      break;
+    }
+
+    /* ── BACKWARD_TO_LINE: normal backward with line-follow until end line ── */
     case ReturnSubState::BACKWARD_TO_LINE: {
       // Debounce: require N consecutive left-side line detections.
       if (isReturnEndLineMask(in.line_mask_5b)) {

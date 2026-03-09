@@ -28,13 +28,13 @@
 #define FSM_PRE_ALIGN_CONSEC_REQUIRED 5
 
 /** Consecutive aligned USS readings required before transition (debounce) */
-#define FSM_ALIGN_CONSEC_REQUIRED     4
+#define FSM_ALIGN_CONSEC_REQUIRED     5
 
 /** Minimum ms between debounce counter increments (≥ 1 full USS cycle) */
 #define FSM_ALIGN_DEBOUNCE_MS         50UL
 
 /** Rotation speed used while searching for wall when both left USS read no-echo */
-#define FSM_ALIGN_SEARCH_ROTATE_RPM   12.0f
+#define FSM_ALIGN_SEARCH_ROTATE_RPM   40.0f
 
 /** Max continuous no-echo search time before entering FAULT (ms) */
 #define FSM_ALIGN_NO_ECHO_TIMEOUT_MS  80000UL
@@ -61,10 +61,10 @@
 /* ── Forward / Line Follow ─────────────────────────────────────────── */
 
 /** Forward speed while approaching hog line (RPM) */
-#define FSM_FORWARD_TO_HOG_RPM        20.0f
+#define FSM_FORWARD_TO_HOG_RPM        15.0f
 
 /** Lateral correction magnitude for line following (RPM) */
-#define FSM_LINE_FOLLOW_STRAFE_RPM     8.0f
+#define FSM_LINE_FOLLOW_STRAFE_RPM     16.0f
 
 /* ── Return to End Zone ────────────────────────────────────────────── */
 
@@ -72,7 +72,7 @@
 #define FSM_RETURN_FRONT_TARGET_CM    15.0f
 
 /** Return line-follow forward speed (RPM) */
-#define FSM_RETURN_LINE_FOLLOW_RPM   25.0f
+#define FSM_RETURN_LINE_FOLLOW_RPM   15.0f
 
 /** Consecutive left-side line detections before transitioning to shift-left */
 #define FSM_RETURN_LINE_CONSEC_REQUIRED 3
@@ -88,6 +88,32 @@
 
 /** Duration for ~30 cm left strafe (ms, tune on robot) */
 #define FSM_RETURN_SHIFT_LEFT_30CM_MS 3500UL
+
+/* ── Speed-Up Phase ───────────────────────────────────────────────── */
+
+/** High speed during initial forward/backward burst (RPM) */
+#define FSM_SPEEDUP_RPM             58.0f
+
+/** Distance to travel at high speed before slowing down (cm) */
+#define FSM_SPEEDUP_DISTANCE_CM     145.0f
+
+/** Encoder counts for the speed-up distance (computed from wheel diameter & PPR) */
+#define FSM_SPEEDUP_ENCODER_COUNTS  ((long)( \
+    (FSM_SPEEDUP_DISTANCE_CM / (3.14159265f * MOB_WHEEL_DIAMETER_MM / 10.0f)) \
+    * MOB_ENCODER_PPR))
+
+/* ── Lateral Shift (hogline approach offset per cycle) ────────────── */
+
+/** Lateral shift distance after speed-up (cm, cycles 2 & 3 only) */
+#define FSM_LATERAL_SHIFT_DISTANCE_CM   12.0f
+
+/** Strafe speed during lateral shift (RPM) */
+#define FSM_LATERAL_SHIFT_RPM           15.0f
+
+/** Encoder counts for lateral shift distance */
+#define FSM_LATERAL_SHIFT_ENCODER_COUNTS ((long)( \
+    (FSM_LATERAL_SHIFT_DISTANCE_CM / (3.14159265f * MOB_WHEEL_DIAMETER_MM / 10.0f)) \
+    * MOB_ENCODER_PPR))
 
 /* ── USS Fault ─────────────────────────────────────────────────────── */
 
