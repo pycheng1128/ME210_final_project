@@ -99,7 +99,7 @@ This library implements a **non-blocking finite state machine (FSM)** that contr
 | **Purpose** | Drive forward along the center line until the hog line is reached. |
 | **Sensors** | 5-bit line sensor mask for lateral correction. |
 | **Logic** | Drive forward at `FSM_FORWARD_TO_HOG_RPM` with strafe correction from `lineFollowStrafeCorrectionRpm()`. |
-| **Transition** | Line mask = `11111` (all sensors see black = hog line) → `LAUNCH` |
+| **Transition** | Line mask = `11111` or `01111` (all or 4 rightmost sensors see black = hog line) → `LAUNCH` |
 
 ### 6. `LAUNCH`
 

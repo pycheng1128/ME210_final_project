@@ -1,0 +1,1850 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>CURL-E — Introduction to Mechatronics Project</title>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:ital,wght@0,400;0,700;1,400&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #f4f3ee;
+      --fg: #0c0c0c;
+      --accent: #c8f04a;
+      --muted: #888;
+      --border: #d6d5d0;
+      --card: #ffffff;
+      --mono: 'Space Mono', monospace;
+      --sans: 'DM Sans', sans-serif;
+      --hdr: 52px;
+      --tab: 50px;
+    }
+
+    html { scroll-behavior: smooth; }
+    body { background: var(--bg); color: var(--fg); font-family: var(--sans); font-weight: 300; min-height: 100vh; overflow-x: hidden; }
+
+    /* HEADER */
+    header {
+      position: fixed; top: 0; left: 0; right: 0; z-index: 200;
+      background: var(--fg); color: var(--bg);
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 0 3rem; height: var(--hdr);
+    }
+    .header-logo { font-family: var(--mono); font-size: .82rem; font-weight: 700; letter-spacing: .18em; text-transform: uppercase; color: var(--accent); }
+    .header-sub  { font-family: var(--mono); font-size: .62rem; color: #666; letter-spacing: .1em; }
+
+    /* TAB BAR */
+    .tab-bar {
+      position: fixed; top: var(--hdr); left: 0; right: 0; z-index: 199;
+      display: flex; background: var(--bg);
+      border-bottom: 1.5px solid var(--border);
+      overflow-x: auto; scrollbar-width: none;
+    }
+    .tab-bar::-webkit-scrollbar { display: none; }
+    .tab-btn {
+      flex: 1; min-width: 100px;
+      display: flex; align-items: center; justify-content: center; gap: .45rem;
+      height: var(--tab); padding: 0 1rem;
+      font-family: var(--mono); font-size: .65rem; letter-spacing: .1em; text-transform: uppercase;
+      color: var(--muted); background: none; border: none; border-right: 1px solid var(--border);
+      cursor: pointer; white-space: nowrap; position: relative;
+      transition: color .2s, background .2s;
+    }
+    .tab-btn:last-child { border-right: none; }
+    .tab-btn::after { content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 2.5px; background: var(--accent); transform: scaleX(0); transition: transform .25s ease; }
+    .tab-btn:hover { color: var(--fg); background: var(--accent); }
+    .tab-btn.active { color: var(--fg); }
+    .tab-btn.active::after { transform: scaleX(1); }
+
+    /* PANELS */
+    .panels { margin-top: calc(var(--hdr) + var(--tab)); }
+    .panel { display: none; animation: panelIn .32s ease both; }
+    .panel.active { display: block; }
+    @keyframes panelIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+
+    /* SHARED */
+    .page-hero {
+      padding: 4rem 3rem 3rem; border-bottom: 1px solid var(--border);
+    }
+    .page-tag { font-family: var(--mono); font-size: .65rem; letter-spacing: .15em; text-transform: uppercase; color: var(--muted); margin-bottom: .6rem; }
+    .page-title { font-family: var(--mono); font-size: clamp(2rem,4vw,3.2rem); font-weight: 700; line-height: 1.05; margin-bottom: 1rem; }
+    .page-title em { font-style: normal; background: var(--accent); padding: 0 .1em; }
+    .page-desc { font-size: .95rem; color: #555; max-width: 580px; line-height: 1.75; }
+    .page-body { padding: 2.5rem 3rem 4rem; }
+
+    h3.sh { font-family: var(--mono); font-size: .78rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; margin: 2.5rem 0 1rem; padding-bottom: .5rem; border-bottom: 1px solid var(--border); }
+    h3.sh:first-child { margin-top: 0; }
+    p.bt { font-size: .9rem; color: #444; line-height: 1.75; margin-bottom: 1rem; }
+
+    /* GRID CELLS */
+    .g2 { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--border); border: 1px solid var(--border); }
+    .g3 { display: grid; grid-template-columns: repeat(3,1fr); gap: 1px; background: var(--border); border: 1px solid var(--border); }
+    .g4 { display: grid; grid-template-columns: repeat(4,1fr); gap: 1px; background: var(--border); border: 1px solid var(--border); }
+    .cell { background: var(--card); padding: 2rem 1.75rem; }
+    .cell-lbl { font-family: var(--mono); font-size: .62rem; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin-bottom: .45rem; }
+    .cell-val { font-family: var(--mono); font-size: 1.9rem; font-weight: 700; line-height: 1; margin-bottom: .25rem; }
+    .cell-sub { font-size: .82rem; color: #555; }
+
+    /* TABLES */
+    .tbl { width: 100%; border-collapse: collapse; border: 1px solid var(--border); }
+    .tbl th { font-family: var(--mono); font-size: .62rem; letter-spacing: .1em; text-transform: uppercase; background: var(--fg); color: var(--bg); padding: .75rem 1.25rem; text-align: left; }
+    .tbl td { padding: .7rem 1.25rem; font-size: .86rem; border-bottom: 1px solid var(--border); }
+    .tbl tr:last-child td { border-bottom: none; }
+    .tbl tr:nth-child(even) td { background: #f8f7f3; }
+    .tbl td:first-child { font-family: var(--mono); font-size: .72rem; color: var(--muted); }
+    .tbl td.center { text-align: center; font-family: var(--mono); font-weight: 700; }
+    .tbl td.right  { text-align: right; font-family: var(--mono); }
+    .bom-cat { font-family: var(--mono); font-size: .6rem; letter-spacing: .1em; text-transform: uppercase; padding: .45rem 1.25rem; background: #eceae4; color: var(--muted); border-bottom: 1px solid var(--border); }
+    .tbl tr.tot td { background: var(--accent) !important; font-weight: 700; }
+
+    /* DIAGRAM BOX */
+    .dbox { background: #eceae4; border: 1px solid var(--border); display: flex; align-items: center; justify-content: center; min-height: 260px; position: relative; }
+    .dbox-lbl { position: absolute; bottom: .75rem; left: 1rem; font-family: var(--mono); font-size: .62rem; color: var(--muted); letter-spacing: .08em; }
+
+    /* CELL HOVER GREEN */
+    .cell { transition: background .2s; }
+    .cell:not(.ac):hover { background: var(--accent) !important; }
+    .cell.ac { background: var(--card); }
+    .cell.ac:hover { background: var(--accent) !important; }
+
+    /* COMPONENT CARDS */
+    .comp-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 1px; background: var(--border); border: 1px solid var(--border); }
+    .comp-card { background: var(--card); padding: 1.6rem 1.5rem; transition: background .2s; }
+    .comp-card:hover { background: var(--accent) !important; }
+    .comp-cat { font-family: var(--mono); font-size: .58rem; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); margin-bottom: .5rem; }
+    .comp-name { font-family: var(--mono); font-size: .86rem; font-weight: 700; margin-bottom: .35rem; }
+    .comp-dot { width: 7px; height: 7px; background: var(--accent); border-radius: 50%; display: inline-block; margin-right: .4rem; }
+    .comp-spec { font-size: .78rem; color: #555; }
+
+    /* STACK LIST */
+    .stack { border: 1px solid var(--border); }
+    .stack-item { display: flex; align-items: center; gap: 1rem; padding: 1rem 1.4rem; border-bottom: 1px solid var(--border); background: var(--card); transition: background .2s; }
+    .stack-item:last-child { border-bottom: none; }
+    .stack-item:hover { background: #f7f6f1; }
+    .s-icon { width: 34px; height: 34px; background: var(--accent); display: flex; align-items: center; justify-content: center; font-size: .95rem; flex-shrink: 0; }
+    .s-name { font-family: var(--mono); font-size: .82rem; font-weight: 700; }
+    .s-desc { font-size: .78rem; color: var(--muted); }
+    .s-badge { margin-left: auto; font-family: var(--mono); font-size: .58rem; letter-spacing: .08em; text-transform: uppercase; padding: .22rem .6rem; border: 1px solid var(--border); color: var(--muted); white-space: nowrap; }
+
+    /* CODE BLOCK */
+    .code { background: var(--fg); color: #e0dfd9; padding: 1.6rem 2rem; font-family: var(--mono); font-size: .76rem; line-height: 1.9; border-left: 3px solid var(--accent); overflow-x: auto; margin-bottom: 1.5rem; }
+    .cc { color: #555; } .ck { color: var(--accent); } .cf { color: #88d4ff; } .cs { color: #ffa87a; }
+
+    /* FOLDER TABS */
+    .folder-tabs { display: flex; gap: 0; border: 1px solid var(--border); margin-bottom: 2rem; }
+    .folder-tab {
+      flex: 1; padding: .85rem 1rem;
+      font-family: var(--mono); font-size: .68rem; letter-spacing: .1em; text-transform: uppercase;
+      background: var(--card); border: none; border-right: 1px solid var(--border);
+      cursor: pointer; text-align: center; color: var(--muted);
+      transition: background .2s, color .2s;
+      display: flex; align-items: center; justify-content: center; gap: .5rem;
+    }
+    .folder-tab:last-child { border-right: none; }
+    .folder-tab:hover { background: var(--accent) !important; color: var(--fg) !important; }
+    .folder-tab .f-dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
+
+    /* CODE VIEWER MODAL */
+    .cv-modal-overlay {
+      display: none; position: fixed; inset: 0; z-index: 500;
+      background: rgba(0,0,0,.65); backdrop-filter: blur(4px);
+      align-items: center; justify-content: center;
+    }
+    .cv-modal-overlay.open { display: flex; }
+    .cv-modal {
+      background: #050505; color: #e0dfd9;
+      width: 90vw; max-width: 1100px; height: 80vh;
+      border: 1px solid #333; border-radius: 4px;
+      display: flex; flex-direction: column; overflow: hidden;
+      animation: modalIn .25s ease both;
+    }
+    @keyframes modalIn { from { opacity:0; transform:scale(.96); } to { opacity:1; transform:scale(1); } }
+    .cv-modal-header {
+      background: rgba(5,5,5,.9); border-bottom: 1px solid #333;
+      padding: .8rem 1.5rem; display: flex; align-items: center; justify-content: space-between;
+      flex-shrink: 0;
+    }
+    .cv-modal-title { font-family: var(--mono); font-size: .75rem; letter-spacing: .12em; color: #c8f04a; }
+    .cv-modal-close {
+      background: none; border: none; color: #666; font-size: 1.4rem; cursor: pointer; line-height: 1;
+      transition: color .2s; font-family: var(--mono);
+    }
+    .cv-modal-close:hover { color: #fff; }
+    .cv-modal-body { display: flex; flex-direction: column; flex: 1; overflow: hidden; }
+    .cv-file-tabs {
+      display: flex; flex-wrap: wrap; gap: 0;
+      background: #111; border-bottom: 1px solid #333;
+      padding: .5rem .75rem; flex-shrink: 0;
+    }
+    .cv-file-tab {
+      font-family: var(--mono); font-size: .68rem; letter-spacing: .06em;
+      color: #666; background: none; border: 1px solid #333;
+      padding: .3rem .75rem; cursor: pointer; margin: .2rem;
+      border-radius: 3px; transition: background .15s, color .15s;
+    }
+    .cv-file-tab:hover { background: rgba(0,255,0,.08); color: #00ff00; }
+    .cv-file-tab.active { background: rgba(0,255,0,.12); color: #00ff00; border-color: #00ff00; }
+    .cv-sidebar { display: none; }
+    .cv-code-viewport { flex-grow: 1; padding: 1.75rem 2rem; overflow-y: auto; background: #050505; box-sizing: border-box; }
+    .cv-code-container { display: flex; flex-direction: column; transition: opacity .2s; }
+    .cv-code-line {
+      display: flex; font-family: var(--mono); font-size: .74rem; line-height: 1.65;
+      color: #e0e0e0; padding: 1px 6px; border-radius: 3px; cursor: crosshair;
+      transition: all .3s cubic-bezier(.25,1,.5,1); transform-origin: left center;
+    }
+    .cv-code-line:hover { color: #00ff00; background: rgba(0,255,0,.05); transform: scale(1.02) translateX(8px); }
+    .cv-line-num { color: #444; width: 36px; flex-shrink: 0; text-align: right; padding-right: 14px; transition: color .3s; user-select: none; }
+    .cv-code-line:hover .cv-line-num { color: #00ff00; }
+
+    /* FSM EMBED PLACEHOLDER */
+    .fsm-embed { background: #eceae4; border: 1px solid var(--border); min-height: 380px; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 1rem; position: relative; }
+    .fsm-embed-lbl { font-family: var(--mono); font-size: .65rem; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+    .fsm-embed-hint { font-size: .82rem; color: #999; max-width: 380px; text-align: center; line-height: 1.6; }
+
+    /* REFLECTIONS SECTION */
+    .reflect-card { background: var(--card); border: 1px solid var(--border); padding: 2rem 2rem; margin-bottom: 1px; transition: background .2s; }
+    .reflect-card:hover { background: #f7f6f1; }
+    .reflect-title { font-family: var(--mono); font-size: .78rem; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; margin-bottom: .75rem; color: var(--fg); display: flex; align-items: center; gap: .65rem; }
+    .reflect-num { background: var(--accent); color: var(--fg); font-family: var(--mono); font-size: .6rem; font-weight: 700; padding: .18rem .55rem; letter-spacing: .08em; }
+
+    /* TEAM */
+    .team-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; background: var(--border); border: 1px solid var(--border); }
+    .tc { background: var(--card); padding: 2.25rem 2rem; display: grid; grid-template-columns: 74px 1fr; gap: 1.5rem; align-items: start; transition: background .2s; }
+    .tc:hover { background: #f7f6f1; }
+    .t-av { width: 74px; height: 74px; background: var(--fg); color: var(--accent); font-family: var(--mono); font-size: 1.2rem; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .t-name { font-family: var(--mono); font-size: .95rem; font-weight: 700; margin-bottom: .25rem; }
+    .t-role { display: inline-block; font-family: var(--mono); font-size: .6rem; letter-spacing: .1em; text-transform: uppercase; background: var(--accent); padding: .18rem .55rem; margin-bottom: .8rem; }
+    .t-bio { font-size: .84rem; color: #555; line-height: 1.65; margin-bottom: .85rem; }
+    .t-skills { display: flex; flex-wrap: wrap; gap: .35rem; }
+    .sk { font-family: var(--mono); font-size: .58rem; letter-spacing: .06em; padding: .18rem .5rem; border: 1px solid var(--border); color: var(--muted); }
+
+    /* HOME */
+    #home .hw { display: grid; grid-template-columns: 1fr 1fr; min-height: calc(100vh - 102px); border-bottom: 1px solid var(--border); }
+    #home .hl { padding: 5rem 3rem; display: flex; flex-direction: column; justify-content: center; border-right: 1px solid var(--border); }
+    #home .htag { font-family: var(--mono); font-size: .65rem; letter-spacing: .18em; text-transform: uppercase; color: var(--muted); margin-bottom: 1.5rem; }
+    #home .htitle { font-family: var(--mono); font-size: clamp(3.5rem,7vw,5.8rem); font-weight: 700; line-height: .95; margin-bottom: 1.75rem; }
+    #home .htitle .hlt { background: var(--accent); padding: .05em .08em; line-height: 1; display: inline; }
+    #home .hdesc { font-size: 1rem; color: #555; max-width: 440px; line-height: 1.7; margin-bottom: 2.5rem; }
+    .cta-row { display: flex; gap: .75rem; flex-wrap: wrap; }
+    .btn { font-family: var(--mono); font-size: .7rem; letter-spacing: .12em; text-transform: uppercase; padding: .85rem 1.6rem; border: none; cursor: pointer; display: inline-flex; align-items: center; gap: .5rem; transition: background .2s, transform .15s; text-decoration: none; }
+    .btn-d { background: var(--fg); color: var(--bg); }
+    .btn-d:hover { background: #333; transform: translateY(-1px); }
+    .btn-a { background: var(--accent); color: var(--fg); }
+    .btn-a:hover { background: #b8e030; transform: translateY(-1px); }
+
+    #home .hr-side { display: flex; align-items: center; justify-content: center; background: #eceae4; position: relative; overflow: hidden; }
+    .rw { position: relative; }
+    .rsv { width: 85%; max-width: 600px; height: auto; animation: float 4s ease-in-out infinite; }
+    @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-14px)} }
+    .pr { position: absolute; border-radius: 50%; border: 1px solid rgba(200,240,74,.4); animation: pulse 3s ease-in-out infinite; }
+    .pr:nth-child(1){width:230px;height:230px;top:50%;left:50%;transform:translate(-50%,-50%);animation-delay:0s;}
+    .pr:nth-child(2){width:310px;height:310px;top:50%;left:50%;transform:translate(-50%,-50%);animation-delay:.8s;}
+    .pr:nth-child(3){width:390px;height:390px;top:50%;left:50%;transform:translate(-50%,-50%);animation-delay:1.6s;}
+    @keyframes pulse { 0%,100%{opacity:.4;transform:translate(-50%,-50%) scale(1)} 50%{opacity:.9;transform:translate(-50%,-50%) scale(1.04)} }
+
+    #home .ss { display: grid; grid-template-columns: repeat(4,1fr); border-top: 1px solid var(--border); }
+    #home .si { padding: 2rem; border-right: 1px solid var(--border); text-align: center; }
+    #home .si:last-child { border-right: none; }
+    #home .sn { font-family: var(--mono); font-size: 2.2rem; font-weight: 700; line-height: 1; }
+    #home .sl { font-size: .72rem; color: var(--muted); margin-top: .35rem; }
+
+    /* MEDIA GRID */
+    .media-grid { display: grid; grid-template-columns: repeat(3, 1fr); grid-template-rows: auto auto; gap: 1px; background: var(--border); border: 1px solid var(--border); margin-bottom: 2rem; }
+    .media-slot--wide { grid-column: span 2; grid-row: span 2; }
+    .media-slot { background: var(--card); min-height: 200px; position: relative; overflow: hidden; transition: background .2s; }
+    .media-slot:hover { background: #f0efe9; }
+    .media-slot--wide { min-height: 420px; }
+    .media-inner { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: .6rem; padding: 1.5rem; }
+    .media-lbl { font-family: var(--mono); font-size: .62rem; letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+    .media-hint { font-family: var(--mono); font-size: .56rem; color: #bbb; letter-spacing: .06em; text-align: center; max-width: 220px; line-height: 1.5; }
+
+    /* FOOTER */
+    footer { border-top: 1px solid var(--border); padding: 1.4rem 3rem; display: flex; justify-content: space-between; align-items: center; }
+    footer span { font-family: var(--mono); font-size: .62rem; color: var(--muted); letter-spacing: .08em; }
+
+    /* RESPONSIVE */
+    @media (max-width: 860px) {
+      header { padding: 0 1.5rem; }
+      .tab-btn { min-width: 80px; padding: 0 .6rem; font-size: .58rem; }
+      #home .hw { grid-template-columns: 1fr; }
+      #home .hr-side { display: none; }
+      #home .ss { grid-template-columns: 1fr 1fr; }
+      .page-hero, .page-body { padding-left: 1.5rem; padding-right: 1.5rem; }
+      .g2, .g3, .g4, .comp-grid, .team-grid { grid-template-columns: 1fr; }
+      .tc { grid-template-columns: 60px 1fr; }
+      footer { flex-direction: column; gap: .4rem; padding: 1.5rem; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div style="display:flex;flex-direction:column;gap:2px;">
+    <span class="header-logo">CURL-E</span>
+    <span class="header-sub" style="color:var(--accent);letter-spacing:.14em;">Team 10</span>
+  </div>
+  <span class="header-sub">Introduction to Mechatronics · Winter 2026</span>
+</header>
+
+<div class="tab-bar" id="tabBar">
+  <button class="tab-btn active" data-tab="home">⬡ Overview</button>
+  <button class="tab-btn" data-tab="mechanical">⚙️ Mechanical</button>
+  <button class="tab-btn" data-tab="electrical">⚡ Electrical</button>
+  <button class="tab-btn" data-tab="software">💻 Software</button>
+  <button class="tab-btn" data-tab="bom">📋 Bill of Materials</button>
+  <button class="tab-btn" data-tab="reflections">💡 Reflections</button>
+  <button class="tab-btn" data-tab="team">👥 Team</button>
+</div>
+
+<div class="panels">
+
+  <!-- HOME -->
+  <div class="panel active" id="home">
+
+    <!-- Hero -->
+    <div class="hw">
+      <div class="hl">
+        <p class="htag">Introduction to Mechatronics · Winter 2026 · Team 10</p>
+        <h1 class="htitle" id="heroTitle" style="visibility:hidden;"></h1>
+        <p class="hdesc">Meet <strong>CURL-E</strong> — our autonomous curling robot built for the BOTspiel Winter Olympics. CURL-E navigates a 4 × 16 ft curling sheet, launches pucks at a bull's-eye target, and returns autonomously to reload — all without human intervention.</p>
+        <div class="cta-row">
+          <button class="btn btn-d" onclick="switchTab('mechanical')">Explore Design →</button>
+          <button class="btn btn-a" onclick="switchTab('bom')">Bill of Materials</button>
+        </div>
+      </div>
+      <div class="hr-side">
+        <img 
+          src="assets/isometric.png" 
+          alt="isometric" 
+          class="rsv"
+        />
+      </div>
+    </div>
+
+    <!-- The Challenge -->
+    <div class="page-body" style="border-top:1px solid var(--border);">
+
+      <h3 class="sh">The Challenge</h3>
+      <p class="bt">Our DROID must compete in BOTspiel — an autonomous robot curling competition. Each DROID starts in a randomly assigned starting zone (A or B), is loaded with 3 pucks, and must play them all autonomously before returning to its zone to receive more. A maximum of 8 pucks may be played per match.</p>
+      <p class="bt">The DROID must navigate the 4 × 16 ft curling sheet, take shots from anywhere behind the hog line, and score points by landing pucks as close to the button as possible. Opponents are simultaneously trying to knock your pucks out and score their own — making strategy and accuracy critical.</p>
+
+      <!-- Arena -->
+      <h3 class="sh">Arena</h3>
+
+      <!-- Arena SVG diagram — detailed recreation of the spec diagram -->
+      <div style="background:#fff;border:1px solid var(--border);padding:2.5rem;margin-bottom:2rem;overflow-x:auto;">
+        <svg viewBox="0 0 700 320" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-width:700px;display:block;margin:0 auto;">
+
+          <!-- ── TOP VIEW ── -->
+          <text x="10" y="18" font-family="monospace" font-size="13" font-weight="bold" fill="#0c0c0c">Top View:</text>
+
+          <!-- Sheet body -->
+          <rect x="30" y="28" width="620" height="120" rx="4" fill="#f5f0e8" stroke="#8B6914" stroke-width="7"/>
+
+          <!-- Zone A -->
+          <rect x="37" y="35" width="68" height="106" fill="#ddd" stroke="#0c0c0c" stroke-width="1.5"/>
+          <text x="71" y="95" text-anchor="middle" font-family="monospace" font-size="16" font-weight="bold" fill="#555">A</text>
+
+          <!-- Zone B -->
+          <rect x="595" y="35" width="48" height="106" fill="#ddd" stroke="#0c0c0c" stroke-width="1.5"/>
+          <text x="619" y="95" text-anchor="middle" font-family="monospace" font-size="16" font-weight="bold" fill="#555">B</text>
+
+          <!-- Center vertical line -->
+          <line x1="340" y1="28" x2="340" y2="148" stroke="#0c0c0c" stroke-width="2"/>
+          <!-- Hog lines -->
+          <line x1="270" y1="28" x2="270" y2="148" stroke="#0c0c0c" stroke-width="2"/>
+          <line x1="410" y1="28" x2="410" y2="148" stroke="#0c0c0c" stroke-width="2"/>
+          <!-- Horizontal center / black tape line -->
+          <line x1="105" y1="88" x2="270" y2="88" stroke="#0c0c0c" stroke-width="2.5"/>
+          <line x1="410" y1="88" x2="595" y2="88" stroke="#0c0c0c" stroke-width="2.5"/>
+
+          <!-- House rings -->
+          <circle cx="340" cy="88" r="54" fill="#2563c4"/>
+          <circle cx="340" cy="88" r="36" fill="white"/>
+          <circle cx="340" cy="88" r="18" fill="#dc2020"/>
+          <circle cx="340" cy="88" r="7"  fill="white" stroke="#dc2020" stroke-width="1.5"/>
+
+          <!-- IR Beacons -->
+          <circle cx="340" cy="15"  r="9" fill="#f97316"/>
+          <circle cx="340" cy="161" r="9" fill="#f97316"/>
+
+          <!-- Scoring annotation lines -->
+          <line x1="340" y1="34"  x2="430" y2="50"  stroke="#333" stroke-width="1"/>
+          <line x1="340" y1="52"  x2="430" y2="65"  stroke="#333" stroke-width="1"/>
+          <line x1="340" y1="70"  x2="430" y2="80"  stroke="#333" stroke-width="1"/>
+          <text x="434" y="53"  font-family="monospace" font-size="10" fill="#333">Ø 24"  1 point</text>
+          <text x="434" y="68"  font-family="monospace" font-size="10" fill="#333">Ø 16"  2 points</text>
+          <text x="434" y="83"  font-family="monospace" font-size="10" fill="#333" font-weight="bold">Ø 8"   5 points</text>
+
+          <!-- Black tape label -->
+          <line x1="170" y1="88" x2="170" y2="68" stroke="#333" stroke-width="1"/>
+          <text x="108" y="63" font-family="monospace" font-size="10" fill="#333">black tape</text>
+          <line x1="155" y1="65" x2="168" y2="84" stroke="#333" stroke-width="1" marker-end="url(#arr)"/>
+
+          <!-- Hog lines label -->
+          <text x="308" y="165" font-family="monospace" font-size="9" fill="#555" text-anchor="middle">hog lines</text>
+
+          <!-- IR Beacon label -->
+          <text x="355" y="13"  font-family="monospace" font-size="9" fill="#f97316">IR Beacon</text>
+
+          <!-- Dimension: 4 ft height -->
+          <line x1="16" y1="28"  x2="16" y2="148" stroke="#333" stroke-width="1"/>
+          <line x1="12" y1="28"  x2="20" y2="28"  stroke="#333" stroke-width="1"/>
+          <line x1="12" y1="148" x2="20" y2="148" stroke="#333" stroke-width="1"/>
+          <text x="4" y="92" font-family="monospace" font-size="11" fill="#333" transform="rotate(-90,8,92)">4 ft</text>
+
+          <!-- Dimension: Zone A 16" -->
+          <line x1="37" y1="155" x2="105" y2="155" stroke="#333" stroke-width="1"/>
+          <text x="71" y="168" font-family="monospace" font-size="10" fill="#333" text-anchor="middle">16"</text>
+
+          <!-- ── SIDE VIEW ── -->
+          <text x="10" y="210" font-family="monospace" font-size="13" font-weight="bold" fill="#0c0c0c">Side View:</text>
+
+          <!-- Ground / board surface -->
+          <rect x="30" y="240" width="620" height="18" fill="#c9a84c" stroke="#8B6914" stroke-width="2"/>
+          <!-- Board thickness label -->
+          <line x1="16" y1="240" x2="16" y2="258" stroke="#333" stroke-width="1"/>
+          <line x1="12" y1="240" x2="20" y2="240" stroke="#333" stroke-width="1"/>
+          <line x1="12" y1="258" x2="20" y2="258" stroke="#333" stroke-width="1"/>
+          <text x="1" y="252" font-family="monospace" font-size="10" fill="#333">3"</text>
+
+          <!-- IR Beacon post -->
+          <rect x="336" y="218" width="8" height="24" fill="#888" stroke="#555" stroke-width="1"/>
+          <!-- Beacon emitters -->
+          <line x1="340" y1="224" x2="280" y2="205" stroke="#f5e642" stroke-width="2"/>
+          <line x1="340" y1="224" x2="295" y2="218" stroke="#f5e642" stroke-width="2"/>
+          <line x1="340" y1="224" x2="400" y2="205" stroke="#f5e642" stroke-width="2"/>
+          <line x1="340" y1="224" x2="385" y2="218" stroke="#f5e642" stroke-width="2"/>
+          <!-- Dots on beacon -->
+          <circle cx="330" cy="224" r="2" fill="#333"/>
+          <circle cx="335" cy="224" r="2" fill="#333"/>
+          <circle cx="340" cy="224" r="2" fill="#333"/>
+          <circle cx="345" cy="224" r="2" fill="#333"/>
+          <circle cx="350" cy="224" r="2" fill="#333"/>
+
+          <!-- 10" height arrow -->
+          <line x1="420" y1="224" x2="420" y2="240" stroke="#333" stroke-width="1"/>
+          <line x1="416" y1="224" x2="424" y2="224" stroke="#333" stroke-width="1"/>
+          <line x1="416" y1="240" x2="424" y2="240" stroke="#333" stroke-width="1"/>
+          <text x="425" y="235" font-family="monospace" font-size="10" fill="#333">10"</text>
+
+          <!-- 8 ft dimension -->
+          <line x1="30"  y1="272" x2="340" y2="272" stroke="#333" stroke-width="1"/>
+          <line x1="30"  y1="268" x2="30"  y2="276" stroke="#333" stroke-width="1"/>
+          <line x1="340" y1="268" x2="340" y2="276" stroke="#333" stroke-width="1"/>
+          <text x="185" y="284" font-family="monospace" font-size="11" fill="#333" text-anchor="middle">8 ft</text>
+
+          <!-- IR Beacon label side view -->
+          <line x1="340" y1="218" x2="370" y2="200" stroke="#333" stroke-width="1"/>
+          <text x="373" y="198" font-family="monospace" font-size="10" fill="#f97316">IR Beacon</text>
+
+          <!-- defs for arrowhead -->
+          <defs>
+            <marker id="arr" markerWidth="6" markerHeight="6" refX="3" refY="3" orient="auto">
+              <path d="M0,0 L6,3 L0,6 Z" fill="#333"/>
+            </marker>
+          </defs>
+        </svg>
+        <p style="text-align:center;font-family:monospace;font-size:0.65rem;color:#aaa;margin-top:0.75rem;letter-spacing:0.08em;">ARENA DIAGRAM — 4 ft × 16 ft CURLING SHEET</p>
+      </div>
+
+      <!-- Scoring -->
+      <h3 class="sh" style="margin-top:0;">Scoring Rules</h3>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--border);border:1px solid var(--border);margin-bottom:1.5rem;">
+        <div style="background:var(--card);padding:0;">
+          <table class="tbl" style="border:none;">
+            <thead><tr><th>Zone</th><th style="text-align:right">Points</th></tr></thead>
+            <tbody>
+              <tr><td>Center / Button (Ø 8")</td><td style="text-align:right;font-family:monospace;font-weight:700;color:var(--fg);">+5</td></tr>
+              <tr><td>Middle Ring (Ø 16")</td><td style="text-align:right;font-family:monospace;font-weight:700;">+2</td></tr>
+              <tr><td>Outer Ring (Ø 24")</td><td style="text-align:right;font-family:monospace;">+1</td></tr>
+              <tr><td>Past opponent's hog line</td><td style="text-align:right;font-family:monospace;color:#dc2020;font-weight:700;">−3</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div style="background:#f7f6f1;padding:1.75rem;">
+          <p style="font-size:.84rem;color:#444;line-height:1.7;margin-bottom:.75rem;">Scores are the sum of all puck values. Puck location is determined by the puck's centre point.</p>
+          <p style="font-size:.84rem;color:#444;line-height:1.7;margin-bottom:.75rem;">If two pucks are stacked, only the one closer to the button is scored.</p>
+          <p style="font-size:.84rem;color:#444;line-height:1.7;">If your puck knocks an opponent's puck into a scoring zone, the opponent gains those points — and your puck scores its own landing zone.</p>
+        </div>
+      </div>
+
+      <!-- Our Design -->
+      <h3 class="sh">Our Design</h3>
+      <p class="bt">To meet the challenge, our DROID was built around three core subsystems — each engineered to work together for reliable autonomous performance on the curling sheet.</p>
+      <div class="g3">
+        <div class="cell" style="border-top:3px solid var(--accent);">
+          <div class="cell-lbl">Subsystem 01</div>
+          <div style="font-family:var(--mono);font-size:1.1rem;font-weight:700;margin-bottom:.5rem;">Powertrain &amp; Chassis</div>
+          <p style="font-size:.86rem;color:#555;line-height:1.65;">DC motor-driven drivetrain with encoder feedback for precise positioning. Allows the DROID to navigate from starting zone to shot position and back autonomously.</p>
+        </div>
+        <div class="cell" style="border-top:3px solid var(--accent);">
+          <div class="cell-lbl">Subsystem 02</div>
+          <div style="font-family:var(--mono);font-size:1.1rem;font-weight:700;margin-bottom:.5rem;">Sensors</div>
+          <p style="font-size:.86rem;color:#555;line-height:1.65;">Ultrasonic sensors for wall-following and distance detection, black tape line sensors for hog line detection, and wheel encoders for dead-reckoning navigation across the 16 ft sheet.</p>
+        </div>
+        <div class="cell" style="border-top:3px solid var(--accent);">
+          <div class="cell-lbl">Subsystem 03</div>
+          <div style="font-family:var(--mono);font-size:1.1rem;font-weight:700;margin-bottom:.5rem;">Puck Launcher</div>
+          <p style="font-size:.86rem;color:#555;line-height:1.65;">A stepper motor-driven mechanism launches one puck at a time with controlled force. After 3 shots, the DROID returns to the start zone for automatic reloading.</p>
+        </div>
+      </div>
+
+      <h3 class="sh" style="margin-top:2.5rem;">Photos &amp; Videos</h3>
+      <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:2rem;">
+        <!-- Robot — horizontal hero -->
+        <div style="width:100%;height:520px;">
+          <img src="assets/robot.png" style="width:100%;height:100%;object-fit:contain;object-position:center;background:#eceae4;">
+        </div>
+        <!-- Square trio — video, AJ, AS3 -->
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;">
+          <div style="aspect-ratio:1/1;">
+            <video src="assets/robot_video.mp4" style="width:100%;height:100%;object-fit:cover;" controls></video>
+          </div>
+          <div style="aspect-ratio:1/1;">
+            <img src="assets/AJ.png" style="width:100%;height:100%;object-fit:cover;object-position:center;">
+          </div>
+          <div style="aspect-ratio:1/1;">
+            <img src="assets/AS3.png" style="width:100%;height:100%;object-fit:cover;object-position:center 20%;">
+          </div>
+        </div>
+        <!-- Competition photos side by side -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
+          <div style="height:480px;">
+            <img src="assets/comp1.jpg" style="width:100%;height:100%;object-fit:cover;object-position:center;">
+          </div>
+          <div style="height:480px;">
+            <img src="assets/comp2.jpg" style="width:100%;height:100%;object-fit:cover;object-position:center;">
+          </div>
+        </div>
+        <!-- Group photo — horizontal full width -->
+        <div style="width:100%;height:520px;">
+          <img src="assets/group_photo_1.png" style="width:100%;height:100%;object-fit:cover;object-position:center;">
+        </div>
+      </div>
+
+    </div>
+    <footer><span>CURL-E — Introduction to Mechatronics BOTspiel Curling Robot © 2026</span><span>Team 10 · Built with precision.</span></footer>
+  </div>
+
+  <!-- MECHANICAL -->
+  <div class="panel" id="mechanical">
+    <div class="page-hero">
+      <p class="page-tag">01 — Mechanical</p>
+      <h2 class="page-title">Structural &amp; <em>Mechanical</em> Design</h2>
+      <p class="page-desc">The chassis and mechanical system was designed in Fusion 360, manufactured via FDM 3D printing and laser cutting, and assembled with custom fastener arrangements.</p>
+    </div>
+    <div class="page-body">
+      <h3 class="sh">Key Dimensions &amp; Parameters</h3>
+      <table class="tbl">
+        <thead><tr><th>Parameter</th><th>Value</th></tr></thead>
+        <tbody>
+          <tr><td>Base Footprint</td><td>13" × 13"</td></tr>
+          <tr><td>Chassis Material</td><td>Duron</td></tr>
+          <tr><td>Stepper Motor Torque</td><td>42 N·cm (holding torque)</td></tr>
+          <tr><td>Max Speed</td><td>0.25 m/s</td></tr>
+          <tr><td>Powertrain Torque</td><td>2.8 kg·cm (rated)</td></tr>
+        </tbody>
+      </table>
+
+
+
+      <h3 class="sh">Design Notes</h3>
+      <p class="bt">The chassis was designed with modularity as a core principle — every panel unbolts and swaps without full disassembly, allowing subassemblies to be revised and replaced quickly without rebuilding the entire robot.</p>
+      <p class="bt">Vibration isolation between the stepper motor and chassis frame was a key consideration, addressed through a redesigned motor housing with a silicone gasket dampening layer.</p>
+
+      <h3 class="sh">CAD Views &amp; Diagrams</h3>
+      <!-- Isometric / parallel view — full width -->
+      <div style="background:#ffffff;border:1px solid var(--border);margin-bottom:1px;padding:2rem;display:flex;flex-direction:column;align-items:center;gap:1rem;">
+        <div style="font-family:var(--mono);font-size:.6rem;letter-spacing:.16em;text-transform:uppercase;color:#888;">Isometric View</div>
+        <img src="assets/isometric.png" alt="Isometric CAD view" style="width:100%;max-width:680px;height:auto;display:block;"/>
+      </div>
+      <!-- Side + Front views side by side -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--border);border:1px solid var(--border);">
+        <div style="background:#ffffff;border:1px solid var(--border);margin-bottom:1px;padding:2rem;display:flex;flex-direction:column;align-items:center;gap:1rem;">
+          <div style="font-family:var(--mono);font-size:.6rem;letter-spacing:.16em;text-transform:uppercase;color:#888;">Side View</div>
+          <img src="assets/side.png" alt="Side CAD view" style="width:100%;max-width:440px;height:auto;display:block;"/>
+        </div>
+        <div style="background:#ffffff;border:1px solid var(--border);margin-bottom:1px;padding:2rem;display:flex;flex-direction:column;align-items:center;gap:1rem;">
+          <div style="font-family:var(--mono);font-size:.6rem;letter-spacing:.16em;text-transform:uppercase;color:#888;">Front View</div>
+          <img src="assets/front.png" alt="Front CAD view" style="width:100%;max-width:440px;height:auto;display:block;"/>
+        </div>
+      </div>
+
+      <!-- ══ SUBASSEMBLIES ══ -->
+      <h3 class="sh" style="margin-top:3rem;">Mechanical Subassemblies</h3>
+
+      <!-- SA-01: Loading & Ramp -->
+      <div style="border:1px solid var(--border);margin-bottom:2rem;">
+        <!-- Subassembly header -->
+        <div style="background:var(--fg);color:var(--bg);padding:1rem 1.75rem;display:flex;align-items:baseline;gap:1rem;">
+          <span style="font-family:var(--mono);font-size:.6rem;letter-spacing:.15em;text-transform:uppercase;color:#666;">SA-01</span>
+          <span style="font-family:var(--mono);font-size:1rem;font-weight:700;letter-spacing:.04em;">Loading <span style="background:var(--accent);color:var(--fg);padding:0 .18em;">&amp; Ramp</span></span>
+        </div>
+
+        <!-- Image row: pinwheel + motorhouse -->
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--border);">
+          <div style="background:#fff;padding:1.5rem;display:flex;flex-direction:column;align-items:center;gap:.6rem;">
+            <div style="font-family:var(--mono);font-size:.58rem;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);">Pinwheel Assembly</div>
+            <img src="assets/pinwheel.png" alt="Pinwheel assembly" style="width:100%;height:auto;max-height:340px;object-fit:contain;display:block;"/>
+          </div>
+          <div style="background:#fff;padding:1.5rem;display:flex;flex-direction:column;align-items:center;gap:.6rem;">
+            <div style="font-family:var(--mono);font-size:.58rem;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);">Motor Housing</div>
+            <img src="assets/motorhouse.png" alt="Motor housing" style="width:100%;height:auto;max-height:340px;object-fit:contain;display:block;"/>
+          </div>
+        </div>
+
+        <!-- Ramp image full width -->
+        <div style="background:#fff;border-top:1px solid var(--border);padding:1.5rem;display:flex;flex-direction:column;align-items:center;gap:.6rem;">
+          <div style="font-family:var(--mono);font-size:.58rem;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);">Ramp Profile</div>
+          <img src="assets/ramp.png" alt="Ramp mechanism" style="width:100%;max-width:680px;height:auto;object-fit:contain;display:block;"/>
+        </div>
+
+        <!-- Description body -->
+        <div style="padding:2rem 1.75rem;background:var(--card);border-top:1px solid var(--border);">
+
+          <div style="font-family:var(--mono);font-size:.62rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--fg);margin-bottom:1.1rem;padding-bottom:.5rem;border-bottom:1px solid var(--border);">Pinwheel &amp; Puck Feed</div>
+          <p class="bt">Three pucks are loaded face-down into the radial slots of a stepper motor-driven pinwheel, which sits above a drop-through cutout in the chassis floor. Each indexed step of the stepper releases one puck through the cutout and onto the ramp below. Drive is transmitted via a D-shaft and rigid shaft coupling to prevent rotational slip between the motor and pinwheel hub.</p>
+
+          <div style="font-family:var(--mono);font-size:.62rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--fg);margin:1.75rem 0 1.1rem;padding-bottom:.5rem;border-bottom:1px solid var(--border);">Ramp Profile</div>
+          <p class="bt">The ramp is steeper at the top and shallower at the exit, allowing pucks to accelerate quickly and leave the ramp travelling horizontally rather than at an angle to the playing surface.</p>
+
+          <div style="font-family:var(--mono);font-size:.62rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--fg);margin:1.75rem 0 1.1rem;padding-bottom:.5rem;border-bottom:1px solid var(--border);">Motor Housing</div>
+          <p class="bt">The stepper motor sits in a two-part 3D-printed housing. The lid features thick walls and external damping ribs to reduce vibration transmission to the chassis. The base raises the motor on four integral legs, shortening the unsupported drive shaft length between the motor face and the pinwheel hub.</p>
+        </div>
+      </div>
+
+      <!-- SA-03: Chassis -->
+      <div style="border:1px solid var(--border);margin-bottom:2rem;">
+        <div style="background:var(--fg);color:var(--bg);padding:1rem 1.75rem;display:flex;align-items:baseline;gap:1rem;">
+          <span style="font-family:var(--mono);font-size:.6rem;letter-spacing:.15em;text-transform:uppercase;color:#666;">SA-03</span>
+          <span style="font-family:var(--mono);font-size:1rem;font-weight:700;letter-spacing:.04em;">Chassis &amp; <span style="background:var(--accent);color:var(--fg);padding:0 .18em;">Frame</span></span>
+        </div>
+        <div style="padding:2rem 1.75rem;background:var(--card);">
+
+          <div style="font-family:var(--mono);font-size:.62rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--fg);margin-bottom:1.1rem;padding-bottom:.5rem;border-bottom:1px solid var(--border);">Structure &amp; Layout</div>
+          <p class="bt">The chassis was laser cut from Duron and features a two-level design, with the two decks connected via six aluminium standoffs. The standoffs provide a rigid structural link between levels while keeping the assembly straightforward to disassemble for access to internal components.</p>
+          <p class="bt">Duron was selected for its ease of fabrication — laser cutting allows new cutouts and mounting holes to be added quickly as the design evolves, without requiring new parts or significant rework. This made it practical to iterate on component placement and cable routing throughout the build.</p>
+
+          <div style="font-family:var(--mono);font-size:.62rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--fg);margin:1.75rem 0 1.1rem;padding-bottom:.5rem;border-bottom:1px solid var(--border);">Limitations &amp; Observed Issues</div>
+          <p class="bt">Over time, significant bending developed in the Duron panels under the weight of the robot's components. This sagging altered the contact angle and ground pressure of the mecanum wheels, which affected drivetrain performance. A stiffer material or additional cross-bracing would be warranted in a future revision.</p>
+
+        </div>
+      </div>
+
+      <!-- SA-02: Mobility & Wheel Assembly -->
+      <div style="border:1px solid var(--border);margin-bottom:2rem;">
+        <!-- Header -->
+        <div style="background:var(--fg);color:var(--bg);padding:1rem 1.75rem;display:flex;align-items:baseline;gap:1rem;">
+          <span style="font-family:var(--mono);font-size:.6rem;letter-spacing:.15em;text-transform:uppercase;color:#666;">SA-02</span>
+          <span style="font-family:var(--mono);font-size:1rem;font-weight:700;letter-spacing:.04em;">Mobility &amp; <span style="background:var(--accent);color:var(--fg);padding:0 .18em;">Wheel Assembly</span></span>
+        </div>
+
+        <!-- Wheels image full width -->
+        <div style="background:#fff;border-bottom:1px solid var(--border);padding:1.5rem;display:flex;flex-direction:column;align-items:center;gap:.6rem;">
+          <div style="font-family:var(--mono);font-size:.58rem;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);">Mecanum Wheel Assembly</div>
+          <img src="assets/wheels.png" alt="Mecanum wheel assembly" style="width:100%;max-width:720px;height:auto;object-fit:contain;display:block;"/>
+        </div>
+
+        <!-- Description body -->
+        <div style="padding:2rem 1.75rem;background:var(--card);">
+
+          <div style="font-family:var(--mono);font-size:.62rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--fg);margin-bottom:1.1rem;padding-bottom:.5rem;border-bottom:1px solid var(--border);">Mecanum Drive &amp; X-Configuration</div>
+          <p class="bt">The mobility system uses four mecanum wheels arranged in an X-configuration, allowing the robot to translate in the XY plane without rotation. Each wheel is driven by a dedicated DC geared motor with an integrated Hall-effect encoder that feeds speed data back to the Arduino Mega, giving the control system real-time visibility into each wheel's velocity independently.</p>
+
+          <div style="font-family:var(--mono);font-size:.62rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--fg);margin:1.75rem 0 1.1rem;padding-bottom:.5rem;border-bottom:1px solid var(--border);">PID Speed Control</div>
+          <p class="bt">Each wheel is independently governed by a closed-loop PID controller. The per-wheel encoder feedback allows each controller to correct for speed error individually, helping maintain consistent motion under uneven loading conditions — for example when carrying pucks offset to one side of the chassis.</p>
+
+          <div style="font-family:var(--mono);font-size:.62rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--fg);margin:1.75rem 0 1.1rem;padding-bottom:.5rem;border-bottom:1px solid var(--border);">Motor Mounting &amp; Shaft Support</div>
+          <p class="bt">Each motor is secured in a 3D-printed housing mounted to the chassis. A separate 3D-printed bearing carrier is mounted at the shaft mid-length, housing a low-friction bearing that provides a second support point for the drive shaft, reducing its unsupported span compared to a purely cantilevered arrangement.</p>
+
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ELECTRICAL -->
+  <div class="panel" id="electrical">
+    <div class="page-hero">
+      <p class="page-tag">02 — Electrical</p>
+      <h2 class="page-title">Electronics &amp; <em>Electrical</em> Systems</h2>
+      <p class="page-desc">The electrical system is built around an Arduino Mega, powered by two 7.4V LiPo batteries in series. A buck converter steps voltage down to 5V for the microcontroller and sensors, while the full 14.8V feeds the powertrain and stepper motor directly.</p>
+    </div>
+    <div class="page-body">
+      <h3 class="sh">Power Architecture</h3>
+      <div class="g3">
+        <div class="cell ac"><div class="cell-lbl">Battery</div><div class="cell-val">14.8V</div><div class="cell-sub">Two 7.4V LiPo batteries in series</div></div>
+        <div class="cell"><div class="cell-lbl">Motors</div><div class="cell-val">14.8V</div><div class="cell-sub">Direct feed to powertrain &amp; stepper motor</div></div>
+        <div class="cell"><div class="cell-lbl">Logic Rail</div><div class="cell-val">5V</div><div class="cell-sub">Buck converter steps down for Arduino Mega &amp; sensors</div></div>
+      </div>
+
+      <h3 class="sh">Core Components</h3>
+      <div class="comp-grid">
+        <div class="comp-card"><div class="comp-cat">Microcontroller</div><div class="comp-name"><span class="comp-dot"></span>Arduino Mega</div><div class="comp-spec">ATmega2560 · 54 digital I/O · 16 analog inputs</div></div>
+        <div class="comp-card"><div class="comp-cat">Distance Sensing</div><div class="comp-name"><span class="comp-dot"></span>Ultrasonic Sensors × 3</div><div class="comp-spec">HC-SR04 · 2–400 cm range · wall-following &amp; distance detection</div></div>
+        <div class="comp-card"><div class="comp-cat">Actuation</div><div class="comp-name"><span class="comp-dot"></span>Stepper Motor</div><div class="comp-spec">Precision angular control · driven at 14.8V</div></div>
+        <div class="comp-card"><div class="comp-cat">Line Detection</div><div class="comp-name"><span class="comp-dot"></span>Line Sensor</div><div class="comp-spec">Detects black tape for hog line &amp; boundary sensing</div></div>
+        <div class="comp-card"><div class="comp-cat">Powertrain · Feedback</div><div class="comp-name"><span class="comp-dot"></span>Hall Encoder DC Geared Motor</div><div class="comp-spec">Hall-effect encoder integrated · speed &amp; position feedback for PID control</div></div>
+        <div class="comp-card"><div class="comp-cat">Motor Driver — Powertrain</div><div class="comp-name"><span class="comp-dot"></span>L298N Dual H-Bridge</div><div class="comp-spec">Drives DC geared motors · up to 2A per channel · direction &amp; PWM speed control</div></div>
+        <div class="comp-card"><div class="comp-cat">Motor Driver — Launcher</div><div class="comp-name"><span class="comp-dot"></span>DRV8825 Stepper Driver</div><div class="comp-spec">Microstepping up to 1/32 step · current-limiting via trim pot · step/dir interface</div></div>
+        <div class="comp-card"><div class="comp-cat">Power Management</div><div class="comp-name"><span class="comp-dot"></span>Power Management System</div><div class="comp-spec">LM2596 buck converter steps 14.8V → 5V logic rail · fused per subsystem · reverse-polarity protected</div></div>
+      </div>
+
+      <!-- ═══ PIN MAP ═══ -->
+      <h3 class="sh">Pin Map — Arduino Mega 2560</h3>
+
+      <!-- Color legend -->
+      <div style="display:flex;flex-wrap:wrap;gap:.45rem 1.25rem;padding:.85rem 1.5rem;background:var(--card);border:1px solid var(--border);border-bottom:none;align-items:center;">
+        <span style="font-family:var(--mono);font-size:.56rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-right:.25rem;">Legend</span>
+        <span style="display:inline-flex;align-items:center;gap:.35rem;"><span style="width:9px;height:9px;background:#f97316;border-radius:50%;display:inline-block;flex-shrink:0;"></span><span style="font-family:var(--mono);font-size:.62rem;color:#444;">PWM Output</span></span>
+        <span style="display:inline-flex;align-items:center;gap:.35rem;"><span style="width:9px;height:9px;background:#8b5cf6;border-radius:50%;display:inline-block;flex-shrink:0;"></span><span style="font-family:var(--mono);font-size:.62rem;color:#444;">External Interrupt</span></span>
+        <span style="display:inline-flex;align-items:center;gap:.35rem;"><span style="width:9px;height:9px;background:#818cf8;border-radius:50%;display:inline-block;flex-shrink:0;"></span><span style="font-family:var(--mono);font-size:.62rem;color:#444;">Encoder B</span></span>
+        <span style="display:inline-flex;align-items:center;gap:.35rem;"><span style="width:9px;height:9px;background:#3b82f6;border-radius:50%;display:inline-block;flex-shrink:0;"></span><span style="font-family:var(--mono);font-size:.62rem;color:#444;">Motor Direction</span></span>
+        <span style="display:inline-flex;align-items:center;gap:.35rem;"><span style="width:9px;height:9px;background:#06b6d4;border-radius:50%;display:inline-block;flex-shrink:0;"></span><span style="font-family:var(--mono);font-size:.62rem;color:#444;">Ultrasonic</span></span>
+        <span style="display:inline-flex;align-items:center;gap:.35rem;"><span style="width:9px;height:9px;background:#f59e0b;border-radius:50%;display:inline-block;flex-shrink:0;"></span><span style="font-family:var(--mono);font-size:.62rem;color:#444;">Stepper Motor</span></span>
+        <span style="display:inline-flex;align-items:center;gap:.35rem;"><span style="width:9px;height:9px;background:#ef4444;border-radius:50%;display:inline-block;flex-shrink:0;"></span><span style="font-family:var(--mono);font-size:.62rem;color:#444;">E-Stop</span></span>
+        <span style="display:inline-flex;align-items:center;gap:.35rem;"><span style="width:9px;height:9px;background:#22c55e;border-radius:50%;display:inline-block;flex-shrink:0;"></span><span style="font-family:var(--mono);font-size:.62rem;color:#444;">Line Sensor</span></span>
+      </div>
+
+      <!-- SVG board diagram (rendered by JS) -->
+      <div style="background:#0f1923;border:1px solid var(--border);overflow-x:auto;padding:2rem 1rem 1.5rem;">
+        <svg id="pinMapSvg" viewBox="0 0 820 290" style="width:100%;min-width:560px;max-width:820px;display:block;margin:0 auto;"></svg>
+      </div>
+
+      <!-- Special pin callout cards -->
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--border);border:1px solid var(--border);border-top:none;margin-bottom:2rem;">
+
+        <!-- External Interrupts -->
+        <div style="background:var(--card);padding:1.4rem 1.25rem;">
+          <div style="display:flex;align-items:center;gap:.45rem;margin-bottom:.75rem;">
+            <span style="width:8px;height:8px;background:#8b5cf6;border-radius:50%;flex-shrink:0;"></span>
+            <span style="font-family:var(--mono);font-size:.58rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#8b5cf6;">External Interrupts</span>
+          </div>
+          <div style="font-family:var(--mono);font-size:.72rem;font-weight:700;margin-bottom:.4rem;">D18–D21 · INT2–INT5</div>
+          <p style="font-size:.78rem;color:#555;line-height:1.6;margin-bottom:.7rem;">Hardware interrupt pins capture encoder Channel A pulses from all 4 drive motors — enabling precise RPM measurement without polling the main loop.</p>
+          <div style="display:flex;flex-direction:column;gap:.25rem;">
+            <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:.62rem;padding-bottom:.25rem;border-bottom:1px solid var(--border);"><span style="color:#8b5cf6;">D18 INT5</span><span style="color:#888;">Enc1-A · FL Motor</span></div>
+            <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:.62rem;padding-bottom:.25rem;border-bottom:1px solid var(--border);"><span style="color:#8b5cf6;">D19 INT4</span><span style="color:#888;">Enc2-A · FR Motor</span></div>
+            <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:.62rem;padding-bottom:.25rem;border-bottom:1px solid var(--border);"><span style="color:#8b5cf6;">D20 INT3</span><span style="color:#888;">Enc3-A · BL Motor</span></div>
+            <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:.62rem;"><span style="color:#8b5cf6;">D21 INT2</span><span style="color:#888;">Enc4-A · BR Motor</span></div>
+          </div>
+        </div>
+
+        <!-- PWM -->
+        <div style="background:var(--card);padding:1.4rem 1.25rem;">
+          <div style="display:flex;align-items:center;gap:.45rem;margin-bottom:.75rem;">
+            <span style="width:8px;height:8px;background:#f97316;border-radius:50%;flex-shrink:0;"></span>
+            <span style="font-family:var(--mono);font-size:.58rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#f97316;">PWM Outputs</span>
+          </div>
+          <div style="font-family:var(--mono);font-size:.72rem;font-weight:700;margin-bottom:.4rem;">D4–D7 · Timer-backed</div>
+          <p style="font-size:.78rem;color:#555;line-height:1.6;margin-bottom:.7rem;">Timer-backed PWM on each of the four L298N ENA/ENB pins. The PI controller maps its output (0–255) here to close the speed loop independently per wheel.</p>
+          <div style="display:flex;flex-direction:column;gap:.25rem;">
+            <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:.62rem;padding-bottom:.25rem;border-bottom:1px solid var(--border);"><span style="color:#f97316;">D4 ~</span><span style="color:#888;">Motor 1 ENA · FL</span></div>
+            <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:.62rem;padding-bottom:.25rem;border-bottom:1px solid var(--border);"><span style="color:#f97316;">D5 ~</span><span style="color:#888;">Motor 2 ENA · FR</span></div>
+            <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:.62rem;padding-bottom:.25rem;border-bottom:1px solid var(--border);"><span style="color:#f97316;">D6 ~</span><span style="color:#888;">Motor 3 ENA · BL</span></div>
+            <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:.62rem;"><span style="color:#f97316;">D7 ~</span><span style="color:#888;">Motor 4 ENA · BR</span></div>
+          </div>
+        </div>
+
+        <!-- Analog / Line Sensor -->
+        <div style="background:var(--card);padding:1.4rem 1.25rem;">
+          <div style="display:flex;align-items:center;gap:.45rem;margin-bottom:.75rem;">
+            <span style="width:8px;height:8px;background:#22c55e;border-radius:50%;flex-shrink:0;"></span>
+            <span style="font-family:var(--mono);font-size:.58rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#22c55e;">Analog Inputs</span>
+          </div>
+          <div style="font-family:var(--mono);font-size:.72rem;font-weight:700;margin-bottom:.4rem;">A1–A5 · 5-ch IR Array</div>
+          <p style="font-size:.78rem;color:#555;line-height:1.6;margin-bottom:.7rem;">Each channel outputs an analog voltage proportional to surface reflectance. Thresholded in firmware to a 5-bit mask — used for centerline tracking and hog line detection.</p>
+          <div style="display:flex;flex-direction:column;gap:.25rem;">
+            <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:.62rem;padding-bottom:.25rem;border-bottom:1px solid var(--border);"><span style="color:#22c55e;">A1</span><span style="color:#888;">CH1 · Far Left</span></div>
+            <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:.62rem;padding-bottom:.25rem;border-bottom:1px solid var(--border);"><span style="color:#22c55e;">A2</span><span style="color:#888;">CH2 · Left-Center</span></div>
+            <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:.62rem;padding-bottom:.25rem;border-bottom:1px solid var(--border);"><span style="color:#22c55e;">A3</span><span style="color:#888;">CH3 · Center</span></div>
+            <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:.62rem;padding-bottom:.25rem;border-bottom:1px solid var(--border);"><span style="color:#22c55e;">A4</span><span style="color:#888;">CH4 · Right-Center</span></div>
+            <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:.62rem;"><span style="color:#22c55e;">A5</span><span style="color:#888;">CH5 · Far Right</span></div>
+          </div>
+        </div>
+
+        <!-- Stepper & Safety -->
+        <div style="background:var(--card);padding:1.4rem 1.25rem;">
+          <div style="display:flex;align-items:center;gap:.45rem;margin-bottom:.75rem;">
+            <span style="width:8px;height:8px;background:#f59e0b;border-radius:50%;flex-shrink:0;"></span>
+            <span style="font-family:var(--mono);font-size:.58rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#f59e0b;">Stepper &amp; Safety</span>
+          </div>
+          <div style="font-family:var(--mono);font-size:.72rem;font-weight:700;margin-bottom:.4rem;">Step/Dir + E-Stop</div>
+          <p style="font-size:.78rem;color:#555;line-height:1.6;margin-bottom:.7rem;">Step/Dir interface drives the DRV8825. Each rising edge on STEP advances by one microstep; DIR sets rotation. D53 active-LOW enable cuts motor current when idle. D42 E-Stop halts all motion immediately.</p>
+          <div style="display:flex;flex-direction:column;gap:.25rem;">
+            <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:.62rem;padding-bottom:.25rem;border-bottom:1px solid var(--border);"><span style="color:#f59e0b;">D34</span><span style="color:#888;">Stepper STEP</span></div>
+            <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:.62rem;padding-bottom:.25rem;border-bottom:1px solid var(--border);"><span style="color:#f59e0b;">D35</span><span style="color:#888;">Stepper DIR</span></div>
+            <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:.62rem;padding-bottom:.25rem;border-bottom:1px solid var(--border);"><span style="color:#f59e0b;">D53</span><span style="color:#888;">Stepper EN (act. LOW)</span></div>
+            <div style="display:flex;justify-content:space-between;font-family:var(--mono);font-size:.62rem;"><span style="color:#ef4444;">D42</span><span style="color:#888;">E-Stop (pull-up)</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Full pin reference table -->
+      <table class="tbl" style="margin-bottom:2.5rem;">
+        <thead><tr><th>Pin</th><th>Function</th><th>Connected To</th><th>Notes</th></tr></thead>
+        <tbody>
+          <tr><td colspan="4" class="bom-cat">⚡ PWM — Motor Speed Control (D4–D7)</td></tr>
+          <tr><td>D4 ~</td><td>Motor 1 ENA</td><td>L298N #1 ENA</td><td>Front-Left speed · PI output</td></tr>
+          <tr><td>D5 ~</td><td>Motor 2 ENA</td><td>L298N #1 ENB</td><td>Front-Right speed · PI output</td></tr>
+          <tr><td>D6 ~</td><td>Motor 3 ENA</td><td>L298N #2 ENA</td><td>Back-Left speed · PI output</td></tr>
+          <tr><td>D7 ~</td><td>Motor 4 ENA</td><td>L298N #2 ENB</td><td>Back-Right speed · PI output</td></tr>
+          <tr><td colspan="4" class="bom-cat">⚡ External Interrupts — Encoder Channel A (D18–D21)</td></tr>
+          <tr><td>D18 INT5</td><td>Encoder 1 A</td><td>Motor 1 Hall A</td><td>CHANGE interrupt · Front-Left</td></tr>
+          <tr><td>D19 INT4</td><td>Encoder 2 A</td><td>Motor 2 Hall A</td><td>CHANGE interrupt · Front-Right</td></tr>
+          <tr><td>D20 INT3</td><td>Encoder 3 A</td><td>Motor 3 Hall A</td><td>CHANGE interrupt · Back-Left</td></tr>
+          <tr><td>D21 INT2</td><td>Encoder 4 A</td><td>Motor 4 Hall A</td><td>CHANGE interrupt · Back-Right</td></tr>
+          <tr><td colspan="4" class="bom-cat">🔵 Digital — Motor Direction (D22–D29)</td></tr>
+          <tr><td>D22, D23</td><td>Motor 1 IN1/IN2</td><td>L298N #1 IN1/IN2</td><td>H-bridge direction · Front-Left</td></tr>
+          <tr><td>D24, D25</td><td>Motor 2 IN1/IN2</td><td>L298N #1 IN3/IN4</td><td>H-bridge direction · Front-Right</td></tr>
+          <tr><td>D26, D27</td><td>Motor 3 IN1/IN2</td><td>L298N #2 IN1/IN2</td><td>H-bridge direction · Back-Left</td></tr>
+          <tr><td>D28, D29</td><td>Motor 4 IN1/IN2</td><td>L298N #2 IN3/IN4</td><td>H-bridge direction · Back-Right</td></tr>
+          <tr><td colspan="4" class="bom-cat">🔵 Digital — Encoder Channel B (D30–D33)</td></tr>
+          <tr><td>D30–D33</td><td>Encoders 1–4 B</td><td>Motors 1–4 Hall B</td><td>Quadrature direction channel (polled)</td></tr>
+          <tr><td colspan="4" class="bom-cat">🟡 Stepper Motor Control (D34, D35, D53)</td></tr>
+          <tr><td>D34</td><td>Stepper STEP</td><td>DRV8825 STEP</td><td>Rising edge = 1 microstep · Timer3 ISR</td></tr>
+          <tr><td>D35</td><td>Stepper DIR</td><td>DRV8825 DIR</td><td>HIGH = CW, LOW = CCW</td></tr>
+          <tr><td>D53</td><td>Stepper ENABLE</td><td>DRV8825 EN</td><td>Active LOW — disabled when idle</td></tr>
+          <tr><td colspan="4" class="bom-cat">🔵 Digital — Ultrasonic Sensors (D36–D41)</td></tr>
+          <tr><td>D36, D37</td><td>USS Front Trig/Echo</td><td>HC-SR04 #1</td><td>Forward obstacle detection</td></tr>
+          <tr><td>D38, D39</td><td>USS Left-Rear Trig/Echo</td><td>HC-SR04 #2</td><td>Left-wall alignment · rear</td></tr>
+          <tr><td>D40, D41</td><td>USS Left-Front Trig/Echo</td><td>HC-SR04 #3</td><td>Left-wall alignment · front</td></tr>
+          <tr><td colspan="4" class="bom-cat">🔴 Safety (D42)</td></tr>
+          <tr><td>D42</td><td>E-Stop Button</td><td>Momentary push button</td><td>Active LOW · internal pull-up enabled</td></tr>
+          <tr><td colspan="4" class="bom-cat">🟢 Analog Inputs — Line Sensor (A1–A5)</td></tr>
+          <tr><td>A1</td><td>IR Channel 1</td><td>IR Array pin 1</td><td>Far Left</td></tr>
+          <tr><td>A2</td><td>IR Channel 2</td><td>IR Array pin 2</td><td>Left-Center</td></tr>
+          <tr><td>A3</td><td>IR Channel 3</td><td>IR Array pin 3</td><td>Center</td></tr>
+          <tr><td>A4</td><td>IR Channel 4</td><td>IR Array pin 4</td><td>Right-Center</td></tr>
+          <tr><td>A5</td><td>IR Channel 5</td><td>IR Array pin 5</td><td>Far Right</td></tr>
+        </tbody>
+      </table>
+
+      <!-- ═══ ELECTRICAL SYSTEM SCHEMATICS ═══ -->
+      <h3 class="sh">Electrical System Schematics</h3>
+
+      <!-- Subsystem overview cards -->
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--border);border:1px solid var(--border);margin-bottom:1.5rem;">
+
+        <!-- SS-01: Power -->
+        <div style="background:var(--card);padding:1.4rem 1.5rem;">
+          <div style="font-family:var(--mono);font-size:.56rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:.35rem;">SS-01 · Power</div>
+          <div style="font-family:var(--mono);font-size:.82rem;font-weight:700;margin-bottom:.6rem;">Power Management</div>
+          <div style="border-left:3px solid #f59e0b;padding-left:.75rem;margin-bottom:.6rem;">
+            <p style="font-size:.78rem;color:#444;line-height:1.6;margin:0;">Two 7.4V LiPos in series → 14.8V bus. LM2596 buck steps to 5V for MCU &amp; sensors. Fused and reverse-polarity protected per subsystem.</p>
+          </div>
+          <div style="font-family:var(--mono);font-size:.6rem;color:#888;">14.8V → motors · 5V → logic rail</div>
+        </div>
+
+        <!-- SS-02: MCU -->
+        <div style="background:var(--card);padding:1.4rem 1.5rem;">
+          <div style="font-family:var(--mono);font-size:.56rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:.35rem;">SS-02 · Control</div>
+          <div style="font-family:var(--mono);font-size:.82rem;font-weight:700;margin-bottom:.6rem;">Arduino Mega 2560</div>
+          <div style="border-left:3px solid #3b82f6;padding-left:.75rem;margin-bottom:.6rem;">
+            <p style="font-size:.78rem;color:#444;line-height:1.6;margin:0;">Central hub. Runs FSM, PI controllers, sensor reads, and stepper timing. 54 digital I/O pins + 16 analog inputs. Powered from 5V logic rail.</p>
+          </div>
+          <div style="font-family:var(--mono);font-size:.6rem;color:#888;">ATmega2560 · 16 MHz · 5V logic</div>
+        </div>
+
+        <!-- SS-03: Drivetrain -->
+        <div style="background:var(--card);padding:1.4rem 1.5rem;">
+          <div style="font-family:var(--mono);font-size:.56rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:.35rem;">SS-03 · Drivetrain</div>
+          <div style="font-family:var(--mono);font-size:.82rem;font-weight:700;margin-bottom:.6rem;">Drivetrain Motor Control</div>
+          <div style="border-left:3px solid #3b82f6;padding-left:.75rem;margin-bottom:.6rem;">
+            <p style="font-size:.78rem;color:#444;line-height:1.6;margin:0;">2× L298N dual H-bridge drivers control 4 DC geared motors. Direction set via IN1/IN2 digital pins; speed via PWM on ENA/ENB. Draws directly from 14.8V bus.</p>
+          </div>
+          <div style="font-family:var(--mono);font-size:.6rem;color:#888;">2A/ch · 4 channels · up to 14.8V</div>
+        </div>
+
+        <!-- SS-04: Launcher -->
+        <div style="background:var(--card);padding:1.4rem 1.5rem;">
+          <div style="font-family:var(--mono);font-size:.56rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:.35rem;">SS-04 · Launcher</div>
+          <div style="font-family:var(--mono);font-size:.82rem;font-weight:700;margin-bottom:.6rem;">Stepper Motor Control</div>
+          <div style="border-left:3px solid #f59e0b;padding-left:.75rem;margin-bottom:.6rem;">
+            <p style="font-size:.78rem;color:#444;line-height:1.6;margin:0;">DRV8825 driver in Step/Dir mode. Microstepping up to 1/32. Current set via trim pot. Timer3 ISR generates step pulses. Enable pin goes LOW to energize coils.</p>
+          </div>
+          <div style="font-family:var(--mono);font-size:.6rem;color:#888;">NEMA 17 · 14.8V direct · microstepping</div>
+        </div>
+
+        <!-- SS-05: Sensors (spans 2 cols) -->
+        <div style="background:var(--card);padding:1.4rem 1.5rem;grid-column:span 2;">
+          <div style="font-family:var(--mono);font-size:.56rem;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:.35rem;">SS-05 · Sensing</div>
+          <div style="font-family:var(--mono);font-size:.82rem;font-weight:700;margin-bottom:.6rem;">Sensor Array</div>
+          <div style="border-left:3px solid #22c55e;padding-left:.75rem;margin-bottom:.6rem;">
+            <p style="font-size:.78rem;color:#444;line-height:1.6;margin:0;">3× HC-SR04 ultrasonic (front obstacle + 2× left-wall pair for alignment). 5-ch IR reflectance array detects black tape on A1–A5. 4× Hall-effect quadrature encoders on each drive motor feed the PI speed controllers via hardware interrupts.</p>
+          </div>
+          <div style="display:flex;gap:1.25rem;flex-wrap:wrap;">
+            <span style="font-family:var(--mono);font-size:.6rem;color:#888;">HC-SR04 × 3 · 5V · 2–400 cm</span>
+            <span style="font-family:var(--mono);font-size:.6rem;color:#888;">IR Array × 5-ch · analog · tape detect</span>
+            <span style="font-family:var(--mono);font-size:.6rem;color:#888;">Hall encoder × 4 · quadrature · 5V</span>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- Full schematic image -->
+      <div style="border:1px solid var(--border);overflow:hidden;">
+        <div style="background:var(--fg);color:var(--bg);padding:.65rem 1.25rem;display:flex;align-items:center;justify-content:space-between;">
+          <span style="font-family:var(--mono);font-size:.6rem;letter-spacing:.14em;text-transform:uppercase;">Full System Schematic</span>
+          <span style="font-family:var(--mono);font-size:.56rem;color:#666;">Zoom in browser to inspect detail</span>
+        </div>
+        <img src="assets/schematic.jpeg" style="width:100%;display:block;object-fit:contain;">
+      </div>
+
+    </div>
+  </div>
+
+  <!-- SOFTWARE -->
+  <div class="panel" id="software">
+    <div class="page-hero">
+      <p class="page-tag">03 — Software</p>
+      <h2 class="page-title">Control &amp; <em>Software</em></h2>
+      <p class="page-desc">All control logic runs on the Arduino Mega. Wheel encoders provide real-time speed and position feedback, enabling PID control loops that ensure precise, repeatable movement across the curling sheet.</p>
+    </div>
+    <div class="page-body">
+
+      <!-- ── FINITE STATE MACHINE ── -->
+      <h3 class="sh">Finite State Machine</h3>
+      <p class="bt">The DROID's behaviour is governed by a non-blocking finite state machine running in the main Arduino loop. Each state handles a distinct phase of operation — from initial alignment to shot execution and reload — with well-defined transitions triggered by sensor events and timers.</p>
+      <!-- FSM DIAGRAM -->
+      <div style="background:#fff;border:1px solid var(--border);padding:2.5rem 1.5rem 2rem;margin-bottom:2rem;overflow-x:auto;">
+        <div style="text-align:center;margin-bottom:2rem;">
+          <div style="font-family:var(--mono);font-size:.58rem;letter-spacing:.2em;color:#888;text-transform:uppercase;margin-bottom:.4rem;">Software — State Machine</div>
+          <div style="font-family:var(--mono);font-size:1.15rem;font-weight:700;color:#0c0c0c;letter-spacing:.04em;">FINITE STATE <span style="background:#c8f04a;color:#0c0c0c;padding:0 .25em;">MACHINE</span></div>
+        </div>
+        <svg viewBox="0 0 1400 860" width="100%" style="min-width:900px;max-width:1400px;display:block;margin:0 auto;font-family:Space Mono,monospace;" xmlns="http://www.w3.org/2000/svg">
+          <defs>
+            <marker id="fA"  markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="#444"/></marker>
+            <marker id="fAg" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="#3a8a00"/></marker>
+            <marker id="fAr" markerWidth="8" markerHeight="8" refX="7" refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill="#cc2222"/></marker>
+          </defs>
+
+          <!-- has_aligned shortcut: IDLE → MV ALIGN (dashed) -->
+          <path d="M150,396 Q150,470 398,468" fill="none" stroke="#aaa" stroke-width="1.2" stroke-dasharray="6,3" marker-end="url(#fA)"/>
+          <g transform="translate(242,400)">
+            <rect width="140" height="36" rx="3" fill="#f4f4f0" stroke="#ccc" stroke-width="1"/>
+            <text x="70" y="14" text-anchor="middle" font-size="9" fill="#777">Timer ≥ LOAD_IDLE_MS</text>
+            <text x="70" y="28" text-anchor="middle" font-size="9" fill="#999">(has_aligned shortcut)</text>
+          </g>
+
+          <!-- ══ FAULT TRANSITIONS — each takes a unique horizontal Y exit ══ -->
+
+          <!-- PRE-ALIGN → FAULT -->
+          <path d="M580,168 L1098,78" fill="none" stroke="#cc2222" stroke-width="1.2" stroke-dasharray="6,3" marker-end="url(#fAr)"/>
+          <text x="760" y="118" font-size="9" fill="#cc2222">Timeout</text>
+
+          <!-- TURN ALIGN → FAULT -->
+          <path d="M580,318 Q900,260 1098,90" fill="none" stroke="#cc2222" stroke-width="1.2" stroke-dasharray="6,3" marker-end="url(#fAr)"/>
+          <text x="790" y="248" font-size="9" fill="#cc2222">Timeout</text>
+
+          <!-- MV ALIGN → FAULT -->
+          <path d="M580,468 Q950,380 1098,102" fill="none" stroke="#cc2222" stroke-width="1.2" stroke-dasharray="6,3" marker-end="url(#fAr)"/>
+          <text x="840" y="364" font-size="9" fill="#cc2222">Timeout</text>
+
+          <!-- SHIFT RIGHT → FAULT -->
+          <path d="M580,618 Q1000,500 1100,108" fill="none" stroke="#cc2222" stroke-width="1.2" stroke-dasharray="6,3" marker-end="url(#fAr)"/>
+          <text x="900" y="478" font-size="9" fill="#cc2222">Timeout</text>
+
+          <!-- MV HOG → FAULT -->
+          <path d="M580,758 Q1050,620 1102,108" fill="none" stroke="#cc2222" stroke-width="1.2" stroke-dasharray="6,3" marker-end="url(#fAr)"/>
+          <text x="960" y="596" font-size="9" fill="#cc2222">Timeout</text>
+
+          <!-- IDLE → FAULT (E-Stop) -->
+          <path d="M150,340 Q150,60 1098,60" fill="none" stroke="#cc2222" stroke-width="1.2" stroke-dasharray="6,3" marker-end="url(#fAr)"/>
+          <text x="460" y="52" font-size="9" fill="#cc2222">E-Stop</text>
+
+          <!-- FAULT → IDLE (recover) -->
+          <path d="M1100,106 C1300,106 1300,368 242,368" fill="none" stroke="#cc2222" stroke-width="1.2" stroke-dasharray="6,3" marker-end="url(#fAr)"/>
+          <text x="1020" y="300" font-size="9" fill="#cc2222">'r' received + E-stop clear</text>
+
+          <!-- ══ LEGEND ══ -->
+          <rect x="1050" y="780" width="320" height="75" rx="4" fill="#fafaf7" stroke="#ccc" stroke-width="1"/>
+          <text x="1066" y="798" font-size="9" fill="#555" letter-spacing=".14em" font-weight="700">LEGEND</text>
+          <line x1="1066" y1="812" x2="1106" y2="812" stroke="#444" stroke-width="1.5"/>
+          <text x="1114" y="815" font-size="9" fill="#444">Normal transition</text>
+          <line x1="1066" y1="828" x2="1106" y2="828" stroke="#aaa" stroke-width="1.2" stroke-dasharray="6,3"/>
+          <text x="1114" y="831" font-size="9" fill="#aaa">has_aligned shortcut</text>
+          <line x1="1066" y1="840" x2="1106" y2="840" stroke="#cc2222" stroke-width="1.3" stroke-dasharray="6,3"/>
+          <text x="1114" y="843" font-size="9" fill="#cc2222">Fault / E-Stop / Timeout</text>
+
+          <!-- ══ NORMAL TRANSITIONS ══ -->
+
+          <!-- IDLE → PRE-ALIGN -->
+          <path d="M150,340 Q150,168 398,168" fill="none" stroke="#444" stroke-width="1.5" marker-end="url(#fA)"/>
+          <g transform="translate(158,210)">
+            <rect width="136" height="46" rx="3" fill="#f8f8f5" stroke="#ccc" stroke-width="1"/>
+            <text x="68" y="14" text-anchor="middle" font-size="9" fill="#333">Timer ≥ LOAD_IDLE_MS</text>
+            <line x1="4" y1="23" x2="132" y2="23" stroke="#ddd" stroke-width=".8"/>
+            <text x="68" y="37" text-anchor="middle" font-size="9" fill="#555">Rotate CCW to find wall</text>
+          </g>
+
+          <!-- PRE-ALIGN → TURN ALIGN -->
+          <line x1="490" y1="196" x2="490" y2="288" stroke="#444" stroke-width="1.5" marker-end="url(#fA)"/>
+          <g transform="translate(500,222)">
+            <rect width="136" height="46" rx="3" fill="#f8f8f5" stroke="#ccc" stroke-width="1"/>
+            <text x="68" y="14" text-anchor="middle" font-size="9" fill="#333">Left USS in range</text>
+            <line x1="4" y1="23" x2="132" y2="23" stroke="#ddd" stroke-width=".8"/>
+            <text x="68" y="37" text-anchor="middle" font-size="9" fill="#555">&amp; front clear (debounced)</text>
+          </g>
+
+          <!-- TURN ALIGN → MV ALIGN -->
+          <line x1="490" y1="346" x2="490" y2="438" stroke="#444" stroke-width="1.5" marker-end="url(#fA)"/>
+          <g transform="translate(500,372)">
+            <rect width="136" height="46" rx="3" fill="#f8f8f5" stroke="#ccc" stroke-width="1"/>
+            <text x="68" y="14" text-anchor="middle" font-size="9" fill="#333">USS front-back parallel</text>
+            <line x1="4" y1="23" x2="132" y2="23" stroke="#ddd" stroke-width=".8"/>
+            <text x="68" y="37" text-anchor="middle" font-size="9" fill="#555">&amp; front clear (debounced)</text>
+          </g>
+
+          <!-- MV ALIGN → SHIFT RIGHT -->
+          <line x1="490" y1="496" x2="490" y2="588" stroke="#444" stroke-width="1.5" marker-end="url(#fA)"/>
+          <g transform="translate(500,520)">
+            <rect width="136" height="46" rx="3" fill="#f8f8f5" stroke="#ccc" stroke-width="1"/>
+            <text x="68" y="14" text-anchor="middle" font-size="9" fill="#333">Timer ≥ FWD_ALIGN_MS</text>
+            <line x1="4" y1="23" x2="132" y2="23" stroke="#ddd" stroke-width=".8"/>
+            <text x="68" y="37" text-anchor="middle" font-size="9" fill="#555">Stop drivetrain</text>
+          </g>
+
+          <!-- SHIFT RIGHT → MV HOG -->
+          <line x1="490" y1="646" x2="490" y2="728" stroke="#444" stroke-width="1.5" marker-end="url(#fA)"/>
+          <g transform="translate(500,668)">
+            <rect width="136" height="46" rx="3" fill="#f8f8f5" stroke="#ccc" stroke-width="1"/>
+            <text x="68" y="14" text-anchor="middle" font-size="9" fill="#333">Center LS triggered</text>
+            <line x1="4" y1="23" x2="132" y2="23" stroke="#ddd" stroke-width=".8"/>
+            <text x="68" y="37" text-anchor="middle" font-size="9" fill="#555">Drive fwd to hog line</text>
+          </g>
+
+          <!-- MV HOG → LAUNCH (right) -->
+          <line x1="580" y1="758" x2="718" y2="758" stroke="#444" stroke-width="1.5" marker-end="url(#fA)"/>
+          <g transform="translate(594,768)">
+            <rect width="120" height="46" rx="3" fill="#f8f8f5" stroke="#ccc" stroke-width="1"/>
+            <text x="60" y="14" text-anchor="middle" font-size="9" fill="#333">Line mask = 0b11111</text>
+            <line x1="4" y1="23" x2="116" y2="23" stroke="#ddd" stroke-width=".8"/>
+            <text x="60" y="37" text-anchor="middle" font-size="9" fill="#555">Start launch cycle</text>
+          </g>
+
+          <!-- LAUNCH → RETURN (up) -->
+          <line x1="810" y1="730" x2="810" y2="648" stroke="#444" stroke-width="1.5" marker-end="url(#fA)"/>
+          <g transform="translate(820,674)">
+            <rect width="120" height="46" rx="3" fill="#f8f8f5" stroke="#ccc" stroke-width="1"/>
+            <text x="60" y="14" text-anchor="middle" font-size="9" fill="#333">Stepper cycle done</text>
+            <line x1="4" y1="23" x2="116" y2="23" stroke="#ddd" stroke-width=".8"/>
+            <text x="60" y="37" text-anchor="middle" font-size="9" fill="#555">Drive back to end zone</text>
+          </g>
+
+          <!-- RETURN → IDLE (left + up) -->
+          <path d="M720,618 Q150,618 150,398" fill="none" stroke="#444" stroke-width="1.5" marker-end="url(#fA)"/>
+          <g transform="translate(260,628)">
+            <rect width="136" height="46" rx="3" fill="#f8f8f5" stroke="#ccc" stroke-width="1"/>
+            <text x="68" y="14" text-anchor="middle" font-size="9" fill="#333">Left-side LS triggered</text>
+            <line x1="4" y1="23" x2="132" y2="23" stroke="#ddd" stroke-width=".8"/>
+            <text x="68" y="37" text-anchor="middle" font-size="9" fill="#555">Strafe left, then idle</text>
+          </g>
+
+          <!--
+            LAYOUT:
+            IDLE          x=60   y=360
+            PRE-ALIGN     x=400  y=160
+            TURN ALIGN    x=400  y=300
+            MV ALIGN      x=400  y=440
+            SHIFT RIGHT   x=400  y=580
+            MV HOG        x=400  y=700
+            LAUNCH        x=700  y=700
+            RETURN        x=700  y=580
+            FAULT         x=1100 y=60
+          -->
+
+          <!-- ══ NODES ══ -->
+
+          <!-- IDLE FOR LOADING -->
+          <rect x="60" y="340" width="180" height="56" rx="4" fill="#fff" stroke="#3a8a00" stroke-width="2.5"/>
+          <rect x="64" y="340" width="172" height="4" rx="2" fill="#c8f04a"/>
+          <text x="150" y="364" text-anchor="middle" font-size="11" font-weight="700" fill="#0c0c0c" letter-spacing=".08em">IDLE FOR</text>
+          <text x="150" y="380" text-anchor="middle" font-size="11" font-weight="700" fill="#0c0c0c" letter-spacing=".08em">LOADING</text>
+
+          <!-- PRE-ALIGN ROTATE CCW -->
+          <rect x="400" y="140" width="180" height="56" rx="4" fill="#fff" stroke="#bbb" stroke-width="1.5"/>
+          <text x="490" y="164" text-anchor="middle" font-size="11" font-weight="700" fill="#0c0c0c" letter-spacing=".08em">PRE-ALIGN</text>
+          <text x="490" y="180" text-anchor="middle" font-size="11" font-weight="700" fill="#0c0c0c" letter-spacing=".08em">ROTATE CCW</text>
+
+          <!-- TURN ALIGN TO LEFT WALL -->
+          <rect x="400" y="290" width="180" height="56" rx="4" fill="#fff" stroke="#bbb" stroke-width="1.5"/>
+          <text x="490" y="314" text-anchor="middle" font-size="11" font-weight="700" fill="#0c0c0c" letter-spacing=".08em">TURN ALIGN</text>
+          <text x="490" y="330" text-anchor="middle" font-size="11" font-weight="700" fill="#0c0c0c" letter-spacing=".08em">TO LEFT WALL</text>
+
+          <!-- MOVE FWD AFTER ALIGN -->
+          <rect x="400" y="440" width="180" height="56" rx="4" fill="#fff" stroke="#bbb" stroke-width="1.5"/>
+          <text x="490" y="464" text-anchor="middle" font-size="11" font-weight="700" fill="#0c0c0c" letter-spacing=".08em">MOVE FWD</text>
+          <text x="490" y="480" text-anchor="middle" font-size="11" font-weight="700" fill="#0c0c0c" letter-spacing=".08em">AFTER ALIGN</text>
+
+          <!-- SHIFT RIGHT TO CTR LINE -->
+          <rect x="400" y="590" width="180" height="56" rx="4" fill="#fff" stroke="#bbb" stroke-width="1.5"/>
+          <text x="490" y="614" text-anchor="middle" font-size="11" font-weight="700" fill="#0c0c0c" letter-spacing=".08em">SHIFT RIGHT</text>
+          <text x="490" y="630" text-anchor="middle" font-size="11" font-weight="700" fill="#0c0c0c" letter-spacing=".08em">TO CTR LINE</text>
+
+          <!-- MOVE FWD TO HOG LINE -->
+          <rect x="400" y="730" width="180" height="56" rx="4" fill="#fff" stroke="#bbb" stroke-width="1.5"/>
+          <text x="490" y="754" text-anchor="middle" font-size="11" font-weight="700" fill="#0c0c0c" letter-spacing=".08em">MOVE FWD</text>
+          <text x="490" y="770" text-anchor="middle" font-size="11" font-weight="700" fill="#0c0c0c" letter-spacing=".08em">TO HOG LINE</text>
+
+          <!-- LAUNCH -->
+          <rect x="720" y="730" width="180" height="56" rx="4" fill="#fff" stroke="#bbb" stroke-width="1.5"/>
+          <text x="810" y="762" text-anchor="middle" font-size="11" font-weight="700" fill="#0c0c0c" letter-spacing=".08em">LAUNCH</text>
+
+          <!-- RETURN TO END ZONE -->
+          <rect x="720" y="590" width="180" height="56" rx="4" fill="#fff" stroke="#bbb" stroke-width="1.5"/>
+          <text x="810" y="614" text-anchor="middle" font-size="11" font-weight="700" fill="#0c0c0c" letter-spacing=".08em">RETURN TO</text>
+          <text x="810" y="630" text-anchor="middle" font-size="11" font-weight="700" fill="#0c0c0c" letter-spacing=".08em">END ZONE</text>
+
+          <!-- FAULT -->
+          <rect x="1100" y="50" width="180" height="56" rx="4" fill="#fff5f5" stroke="#cc2222" stroke-width="2"/>
+          <text x="1190" y="82" text-anchor="middle" font-size="11" font-weight="700" fill="#cc2222" letter-spacing=".08em">FAULT</text>
+
+          <!-- ══ START ARROW ══ -->
+          <line x1="20" y1="368" x2="58" y2="368" stroke="#3a8a00" stroke-width="2" marker-end="url(#fAg)"/>
+          <text x="21" y="360" font-size="9" fill="#3a8a00" letter-spacing=".1em">START</text>
+
+          
+        </svg>
+      </div>
+
+      <!-- ── FSM STRATEGY ── -->
+      <h3 class="sh">Game Strategy &amp; Execution Flow</h3>
+      <p class="bt">Each reload cycle fires 3 pucks at different lateral positions — center, left-offset, and right-offset — to spread coverage across the house and avoid already-occupied scoring lanes.</p>
+
+      <!-- Round summary cards -->
+      <div class="g3" style="margin-bottom:2rem;">
+        <div class="cell">
+          <div class="cell-lbl">Round 1</div>
+          <div style="font-family:var(--mono);font-size:1rem;font-weight:700;margin-bottom:.5rem;">Center shot</div>
+          <div style="font-size:.82rem;color:#555;line-height:1.6;">Full alignment sequence → center line → straight run → fire</div>
+        </div>
+        <div class="cell">
+          <div class="cell-lbl">Round 2</div>
+          <div style="font-family:var(--mono);font-size:1rem;font-weight:700;margin-bottom:.5rem;">Left-offset shot</div>
+          <div style="font-size:.82rem;color:#555;line-height:1.6;">Skip alignment → center line → strafe <strong>left</strong> → fire → recenter</div>
+        </div>
+        <div class="cell">
+          <div class="cell-lbl">Round 3</div>
+          <div style="font-family:var(--mono);font-size:1rem;font-weight:700;margin-bottom:.5rem;">Right-offset shot</div>
+          <div style="font-size:.82rem;color:#555;line-height:1.6;">Skip alignment → center line → strafe <strong>right</strong> → fire → recenter</div>
+        </div>
+      </div>
+
+      <!-- Step-by-step flow -->
+      <div style="font-family:var(--mono);font-size:.62rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--fg);margin:0 0 1rem;padding-bottom:.5rem;border-bottom:1px solid var(--border);">Execution Steps</div>
+      <div style="display:flex;flex-direction:column;gap:0;border:1px solid var(--border);margin-bottom:2rem;">
+
+        <!-- Step 1 -->
+        <div style="display:grid;grid-template-columns:2.5rem 1fr;border-bottom:1px solid var(--border);">
+          <div style="background:var(--fg);color:var(--accent);font-family:var(--mono);font-size:.75rem;font-weight:700;display:flex;align-items:center;justify-content:center;">1</div>
+          <div style="display:grid;grid-template-columns:15rem 1fr;background:var(--card);">
+            <div style="padding:.85rem 1rem;border-right:1px solid var(--border);">
+              <div style="font-family:var(--mono);font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:.2rem;">State</div>
+              <div style="font-family:var(--mono);font-size:.72rem;font-weight:700;color:var(--fg);">IDLE_FOR_LOADING</div>
+            </div>
+            <div style="padding:.85rem 1rem;">
+              <div style="font-size:.84rem;color:#444;line-height:1.6;">Hold still for puck loading. After a fixed dwell, begin the sequence. <span style="font-family:var(--mono);font-size:.72rem;background:#f0f0ea;padding:.1em .4em;border-radius:2px;">Round 2 &amp; 3 skip to step 4</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 2 -->
+        <div style="display:grid;grid-template-columns:2.5rem 1fr;border-bottom:1px solid var(--border);">
+          <div style="background:var(--fg);color:var(--accent);font-family:var(--mono);font-size:.75rem;font-weight:700;display:flex;align-items:center;justify-content:center;">2</div>
+          <div style="display:grid;grid-template-columns:15rem 1fr;background:var(--card);">
+            <div style="padding:.85rem 1rem;border-right:1px solid var(--border);">
+              <div style="font-family:var(--mono);font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:.2rem;">State</div>
+              <div style="font-family:var(--mono);font-size:.72rem;font-weight:700;color:var(--fg);">PRE_ALIGN_ROTATE_CCW</div>
+            </div>
+            <div style="padding:.85rem 1rem;">
+              <div style="font-size:.84rem;color:#444;line-height:1.6;">Rotate CCW until both left-side ultrasonic sensors detect the boundary wall simultaneously.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 3 -->
+        <div style="display:grid;grid-template-columns:2.5rem 1fr;border-bottom:1px solid var(--border);">
+          <div style="background:var(--fg);color:var(--accent);font-family:var(--mono);font-size:.75rem;font-weight:700;display:flex;align-items:center;justify-content:center;">3</div>
+          <div style="display:grid;grid-template-columns:15rem 1fr;background:var(--card);">
+            <div style="padding:.85rem 1rem;border-right:1px solid var(--border);">
+              <div style="font-family:var(--mono);font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:.2rem;">State</div>
+              <div style="font-family:var(--mono);font-size:.72rem;font-weight:700;color:var(--fg);">TURN_ALIGN_TO_LEFT_WALL</div>
+            </div>
+            <div style="padding:.85rem 1rem;">
+              <div style="font-size:.84rem;color:#444;line-height:1.6;">Fine-tune heading by matching front vs. rear USS readings until the robot's left flank is parallel to the wall.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 4 -->
+        <div style="display:grid;grid-template-columns:2.5rem 1fr;border-bottom:1px solid var(--border);">
+          <div style="background:var(--fg);color:var(--accent);font-family:var(--mono);font-size:.75rem;font-weight:700;display:flex;align-items:center;justify-content:center;">4</div>
+          <div style="display:grid;grid-template-columns:15rem 1fr;background:var(--card);">
+            <div style="padding:.85rem 1rem;border-right:1px solid var(--border);">
+              <div style="font-family:var(--mono);font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:.2rem;">State</div>
+              <div style="font-family:var(--mono);font-size:.72rem;font-weight:700;color:var(--fg);">MOVE_FORWARD_AFTER_ALIGN</div>
+            </div>
+            <div style="padding:.85rem 1rem;">
+              <div style="font-size:.84rem;color:#444;line-height:1.6;">Drive straight forward for a fixed time to clear the start zone boundary.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 5 -->
+        <div style="display:grid;grid-template-columns:2.5rem 1fr;border-bottom:1px solid var(--border);">
+          <div style="background:var(--fg);color:var(--accent);font-family:var(--mono);font-size:.75rem;font-weight:700;display:flex;align-items:center;justify-content:center;">5</div>
+          <div style="display:grid;grid-template-columns:15rem 1fr;background:var(--card);">
+            <div style="padding:.85rem 1rem;border-right:1px solid var(--border);">
+              <div style="font-family:var(--mono);font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:.2rem;">State</div>
+              <div style="font-family:var(--mono);font-size:.72rem;font-weight:700;color:var(--fg);">SHIFT_RIGHT_TO_CENTER_LINE</div>
+            </div>
+            <div style="padding:.85rem 1rem;">
+              <div style="font-size:.84rem;color:#444;line-height:1.6;">Strafe right until the 5-bit line sensor detects the center black tape — the navigation reference for all deliveries.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 6 -->
+        <div style="display:grid;grid-template-columns:2.5rem 1fr;border-bottom:1px solid var(--border);">
+          <div style="background:var(--fg);color:var(--accent);font-family:var(--mono);font-size:.75rem;font-weight:700;display:flex;align-items:center;justify-content:center;">6</div>
+          <div style="display:grid;grid-template-columns:15rem 1fr;background:var(--card);">
+            <div style="padding:.85rem 1rem;border-right:1px solid var(--border);">
+              <div style="font-family:var(--mono);font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:.2rem;">State · 3 sub-phases</div>
+              <div style="font-family:var(--mono);font-size:.72rem;font-weight:700;color:var(--fg);">MOVE_FORWARD_TO_HOG_LINE</div>
+            </div>
+            <div style="padding:.85rem 1rem;display:flex;flex-direction:column;gap:.5rem;">
+              <div style="display:flex;gap:.6rem;align-items:baseline;"><span style="font-family:var(--mono);font-size:.6rem;font-weight:700;color:var(--muted);min-width:4.5rem;">SPEEDUP</span><span style="font-size:.84rem;color:#444;">High-speed forward burst to cover most of the distance.</span></div>
+              <div style="display:flex;gap:.6rem;align-items:baseline;"><span style="font-family:var(--mono);font-size:.6rem;font-weight:700;color:var(--muted);min-width:4.5rem;">LATERAL</span><span style="font-size:.84rem;color:#444;">Round 2: strafe left · Round 3: strafe right · Round 1: skip.</span></div>
+              <div style="display:flex;gap:.6rem;align-items:baseline;"><span style="font-family:var(--mono);font-size:.6rem;font-weight:700;color:var(--muted);min-width:4.5rem;">LINE FOLLOW</span><span style="font-size:.84rem;color:#444;">Slow down; line sensor keeps the robot on the tape until all 5 sensors see the hog line.</span></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 7 -->
+        <div style="display:grid;grid-template-columns:2.5rem 1fr;border-bottom:1px solid var(--border);">
+          <div style="background:var(--accent);color:var(--fg);font-family:var(--mono);font-size:.75rem;font-weight:700;display:flex;align-items:center;justify-content:center;">7</div>
+          <div style="display:grid;grid-template-columns:15rem 1fr;background:var(--card);">
+            <div style="padding:.85rem 1rem;border-right:1px solid var(--border);">
+              <div style="font-family:var(--mono);font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:.2rem;">State</div>
+              <div style="font-family:var(--mono);font-size:.72rem;font-weight:700;color:var(--fg);">LAUNCH</div>
+            </div>
+            <div style="padding:.85rem 1rem;">
+              <div style="font-size:.84rem;color:#444;line-height:1.6;">Drivetrain stops. Stepper motor drives the launch mechanism through one full cycle to release the puck.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 8 -->
+        <div style="display:grid;grid-template-columns:2.5rem 1fr;">
+          <div style="background:var(--fg);color:var(--accent);font-family:var(--mono);font-size:.75rem;font-weight:700;display:flex;align-items:center;justify-content:center;">8</div>
+          <div style="display:grid;grid-template-columns:15rem 1fr;background:var(--card);">
+            <div style="padding:.85rem 1rem;border-right:1px solid var(--border);">
+              <div style="font-family:var(--mono);font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);margin-bottom:.2rem;">State · 3 sub-phases</div>
+              <div style="font-family:var(--mono);font-size:.72rem;font-weight:700;color:var(--fg);">RETURN_TO_END_ZONE</div>
+            </div>
+            <div style="padding:.85rem 1rem;display:flex;flex-direction:column;gap:.5rem;">
+              <div style="display:flex;gap:.6rem;align-items:baseline;"><span style="font-family:var(--mono);font-size:.6rem;font-weight:700;color:var(--muted);min-width:4.5rem;">SPEEDUP</span><span style="font-size:.84rem;color:#444;">Fast reverse burst away from the hog line.</span></div>
+              <div style="display:flex;gap:.6rem;align-items:baseline;"><span style="font-family:var(--mono);font-size:.6rem;font-weight:700;color:var(--muted);min-width:4.5rem;">RECENTER</span><span style="font-size:.84rem;color:#444;">Round 2/3 only: strafe back to center tape before continuing.</span></div>
+              <div style="display:flex;gap:.6rem;align-items:baseline;"><span style="font-family:var(--mono);font-size:.6rem;font-weight:700;color:var(--muted);min-width:4.5rem;">BACK TO LINE</span><span style="font-size:.84rem;color:#444;">Reverse with line-follow until start-zone tape triggers; strafe left to reload position.</span></div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ── WHEEL CONTROL — PI ── -->
+      <h3 class="sh" style="margin-top:2.5rem;">Wheel Control — PID</h3>
+      <p class="bt">Each drive wheel motor is paired with a quadrature encoder that continuously reports its position and speed back to the Arduino. Four independent PI controllers — one per wheel — run at a fixed periodic interval, comparing the measured speed against the target RPM and adjusting motor PWM output in real time to eliminate error.</p>
+      <p class="bt">This closed-loop approach means the robot moves the exact distance commanded — compensating for surface friction, battery voltage drop, and mechanical asymmetry between motors — which is critical for accurate shot placement on the curling sheet.</p>
+
+      <div class="g3">
+        <div class="cell ac">
+          <div class="cell-lbl">Proportional (P)</div>
+          <div style="font-family:var(--mono);font-size:1rem;font-weight:700;margin-bottom:.4rem;">Instant correction</div>
+          <div class="cell-sub">Responds immediately to current error between target and actual wheel speed</div>
+        </div>
+        <div class="cell">
+          <div class="cell-lbl">Integral (I)</div>
+          <div style="font-family:var(--mono);font-size:1rem;font-weight:700;margin-bottom:.4rem;">Eliminates steady-state error</div>
+          <div class="cell-sub">Accumulates past error to correct persistent offset over time</div>
+        </div>
+        <div class="cell">
+          <div class="cell-lbl">Derivative (D)</div>
+          <div style="font-family:var(--mono);font-size:1rem;font-weight:700;margin-bottom:.4rem;">Set to zero (PI only)</div>
+          <div class="cell-sub">KD = 0; encoder noise makes differentiation unreliable — PI control alone is sufficient for stable wheel speed regulation</div>
+        </div>
+      </div>
+
+      <!-- PID detail blocks -->
+      <div style="font-family:var(--mono);font-size:.62rem;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--fg);margin:2rem 0 1rem;padding-bottom:.5rem;border-bottom:1px solid var(--border);">Control Architecture Details</div>
+
+      <div class="g2" style="margin-bottom:1.5rem;">
+        <div class="cell">
+          <div class="cell-lbl">Speed Measurement &amp; Low-Pass Filter</div>
+          <p style="font-size:.86rem;color:#444;line-height:1.7;margin-top:.5rem;">Encoder pulses are captured via hardware interrupts. Each PID interval, the raw RPM is derived from the delta in encoder ticks. Because velocity from discrete ticks is inherently noisy — especially at low speeds — a <strong>first-order low-pass filter</strong> smooths the measurement:</p>
+          <pre style="font-family:var(--mono);font-size:.73rem;background:#111;color:#7fff7f;padding:.85rem 1rem;border-radius:4px;margin-top:.65rem;overflow-x:auto;line-height:1.6;">SET rawRPM ← (tickDelta / dt) × (60 / PPR)
+
+SET filteredRPM ← filteredRPM
+                  + LPF_ALPHA × (rawRPM − filteredRPM)</pre>
+          <p style="font-size:.84rem;color:#555;line-height:1.65;margin-top:.5rem;"><code>MOB_LPF_ALPHA</code> balances rapid dynamic response against noise rejection.</p>
+        </div>
+        <div class="cell">
+          <div class="cell-lbl">PI(D) Control Equation</div>
+          <p style="font-size:.86rem;color:#444;line-height:1.7;margin-top:.5rem;">The control output is the sum of proportional, integral, and derivative terms. <code>MOB_PID_KD</code> is set to <code>0</code>, making this a PI controller in practice:</p>
+          <pre style="font-family:var(--mono);font-size:.73rem;background:#111;color:#7fff7f;padding:.85rem 1rem;border-radius:4px;margin-top:.65rem;overflow-x:auto;line-height:1.6;">SET error      ← targetRPM − filteredRPM
+SET derivative ← (error − prevError) / dt
+
+SET pidOutput  ← (Kp × error)
+               + (Ki × integral)
+               + (Kd × derivative)</pre>
+          <p style="font-size:.84rem;color:#555;line-height:1.65;margin-top:.5rem;">The D-term would amplify encoder jitter; PI alone delivers stable wheel speed.</p>
+        </div>
+      </div>
+
+      <div class="g2" style="margin-bottom:1.5rem;">
+        <div class="cell">
+          <div class="cell-lbl">Integral Saturation &amp; Anti-Windup</div>
+          <p style="font-size:.86rem;color:#444;line-height:1.7;margin-top:.5rem;">Accumulation is paused if the output is already saturated <em>and</em> the error would make it worse. A hard clamp provides a second failsafe:</p>
+          <pre style="font-family:var(--mono);font-size:.73rem;background:#111;color:#7fff7f;padding:.85rem 1rem;border-radius:4px;margin-top:.65rem;overflow-x:auto;line-height:1.6;">SET saturated ← |integral × Ki| ≥ PWM_MAX
+SET sameSign  ← SIGN(error) = SIGN(integral)
+
+IF NOT (saturated AND sameSign) THEN
+    SET integral ← integral + error × dt
+END IF
+
+SET integral ← CLAMP(integral, −MAX, +MAX)</pre>
+        </div>
+        <div class="cell">
+          <div class="cell-lbl">Safety Brake on Direction Reversal</div>
+          <p style="font-size:.86rem;color:#444;line-height:1.7;margin-top:.5rem;">A sudden polarity flip while spinning causes large current spikes. The driver detects the reversal request and brakes first:</p>
+          <pre style="font-family:var(--mono);font-size:.73rem;background:#111;color:#7fff7f;padding:.85rem 1rem;border-radius:4px;margin-top:.65rem;overflow-x:auto;line-height:1.6;">ON new speed command:
+  IF direction reversed AND |filteredRPM| > REVERSAL_THRESH THEN
+      SET isReversing ← TRUE
+      SET pendingRPM  ← newTarget
+  END IF
+
+EACH PID tick:
+  IF isReversing THEN
+      IF |filteredRPM| < STOPPED_THRESH THEN
+          SET targetRPM   ← pendingRPM
+          SET isReversing ← FALSE
+      ELSE
+          SET targetRPM ← 0
+      END IF
+  END IF</pre>
+        </div>
+      </div>
+
+      <div class="g2" style="margin-bottom:1.5rem;">
+        <div class="cell">
+          <div class="cell-lbl">Deadzone Compensation</div>
+          <p style="font-size:.86rem;color:#444;line-height:1.7;margin-top:.5rem;">DC motors need a minimum voltage to overcome static friction. A feedforward floor on PWM ensures small control efforts still move the motor:</p>
+          <pre style="font-family:var(--mono);font-size:.73rem;background:#111;color:#7fff7f;padding:.85rem 1rem;border-radius:4px;margin-top:.65rem;overflow-x:auto;line-height:1.6;">SET pwm ← |pidOutput|
+
+IF 0 < pwm < PWM_DEADZONE THEN
+    SET pwm ← PWM_DEADZONE
+END IF
+
+SET pwm ← CLAMP(pwm, 0, PWM_MAX)
+CALL applyToDrive(direction, pwm)</pre>
+        </div>
+        <div class="cell">
+          <div class="cell-lbl">Mecanum Wheel Scaling</div>
+          <p style="font-size:.86rem;color:#444;line-height:1.7;margin-top:.5rem;">X-type inverse kinematics computes per-wheel RPM. If any wheel exceeds <code>MOB_MAX_RPM</code>, all four are scaled together to preserve the motion vector:</p>
+          <pre style="font-family:var(--mono);font-size:.73rem;background:#111;color:#7fff7f;padding:.85rem 1rem;border-radius:4px;margin-top:.65rem;overflow-x:auto;line-height:1.6;">SET FL ← vx − vy − rotation
+SET FR ← vx + vy + rotation
+SET BL ← vx + vy − rotation
+SET BR ← vx − vy + rotation
+
+SET peak ← MAX(|FL|, |FR|, |BL|, |BR|)
+IF peak > MAX_RPM THEN
+    SET scale ← MAX_RPM / peak
+    SET FL, FR, BL, BR ← FL×scale, FR×scale,
+                          BL×scale, BR×scale
+END IF</pre>
+        </div>
+      </div>
+
+      <!-- ── CODE VIEWER ── -->
+      <h3 class="sh" style="margin-top:2.5rem;">Code Viewer</h3>
+      <p class="bt">Click a folder below to explore the source files for each subsystem. Each file opens in a full code viewer with syntax highlighting and line-level interaction.</p>
+
+      <div class="folder-tabs">
+        <button class="folder-tab" onclick="openCodeViewer('src')">
+          <span class="f-dot" style="background:#5551FF;"></span> src
+        </button>
+        <button class="folder-tab" onclick="openCodeViewer('include')">
+          <span class="f-dot" style="background:#00cc44;"></span> include
+        </button>
+        <button class="folder-tab" onclick="openCodeViewer('lib')">
+          <span class="f-dot" style="background:#FF9800;"></span> lib
+        </button>
+        <button class="folder-tab" onclick="openCodeViewer('root')">
+          <span class="f-dot" style="background:#FF2A5F;"></span> root
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- CODE VIEWER MODAL -->
+  <div class="cv-modal-overlay" id="cvOverlay" onclick="closeCVIfOutside(event)">
+    <div class="cv-modal">
+      <div class="cv-modal-header">
+        <span class="cv-modal-title" id="cvModalTitle">CODE VIEWER</span>
+        <button class="cv-modal-close" onclick="closeCodeViewer()">✕</button>
+      </div>
+      <div class="cv-modal-body" style="flex-direction:column;">
+        <div class="cv-file-tabs" id="cvFileTabs"></div>
+        <div class="cv-code-viewport" style="flex:1;overflow-y:auto;">
+          <div class="cv-code-container" id="cvCodeContainer"></div>
+          <div style="margin-top:60px;border-top:1px solid #333;padding-top:24px;text-align:center;">
+            <a href="https://github.com/pycheng1128/ME210_final_project" target="_blank" style="font-family:monospace;color:#555;text-decoration:none;font-size:.76rem;display:inline-flex;align-items:center;gap:8px;transition:color .2s;" onmouseover="this.style.color='#fff'" onmouseout="this.style.color='#555'">
+              <svg height="16" width="16" fill="currentColor" viewBox="0 0 16 16"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.012 8.012 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
+              View Full Repository on GitHub
+            </a>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- BOM -->
+  <div class="panel" id="bom">
+    <div class="page-hero">
+      <p class="page-tag">04 — Bill of Materials</p>
+      <h2 class="page-title">Bill of <em>Materials</em></h2>
+      <p class="page-desc">Complete parts list including quantities, suppliers, and estimated costs. Update values to reflect your actual purchases and sourcing.</p>
+    </div>
+    <div class="page-body">
+      <table class="tbl">
+        <thead>
+          <tr><th>#</th><th>Component</th><th>Assembly</th><th>Supplier</th><th style="text-align:center">Qty</th><th style="text-align:right">Unit $</th><th style="text-align:right">Total</th><th style="text-align:center">Personal?</th></tr>
+        </thead>
+        <tbody>
+          <tr><td colspan="8" class="bom-cat">⚙️ Loading Assembly — Shaft Assembly</td></tr>
+          <tr><td>L01</td><td>Pinwheel</td><td>Shaft Assm</td><td>Amps Custom</td><td class="center">1</td><td class="right">$3.00</td><td class="right">$3.00</td><td class="center">Yes</td></tr>
+          <tr><td>L02</td><td>Flanged Sleeve Bearing, 6mm ID</td><td>Shaft Assm</td><td>Amazon</td><td class="center">1</td><td class="right">$9.48</td><td class="right">$9.48</td><td class="center">Yes</td></tr>
+          <tr><td>L03</td><td>D Shaft</td><td>Shaft Assm</td><td>Supply Closet</td><td class="center">1</td><td class="right">$1.50</td><td class="right">$1.50</td><td class="center">Yes</td></tr>
+          <tr><td>L04</td><td>Shaft Coupling</td><td>Shaft Assm</td><td>Supply Closet</td><td class="center">1</td><td class="right">$1.50</td><td class="right">$1.50</td><td class="center">No</td></tr>
+
+          <tr><td colspan="8" class="bom-cat">⚙️ Loading Assembly — Motor Housing Assembly</td></tr>
+          <tr><td>L05</td><td>Nema 17 Stepper Motor</td><td>Motor Housing Assm</td><td>Amazon</td><td class="center">1</td><td class="right">$10.99</td><td class="right">$10.99</td><td class="center">Yes</td></tr>
+          <tr><td>L06</td><td>Motor Lid</td><td>Motor Housing Assm</td><td>Amps Custom</td><td class="center">1</td><td class="right">$0.00</td><td class="right">$0.00</td><td class="center">Yes</td></tr>
+          <tr><td>L07</td><td>Motor Base</td><td>Motor Housing Assm</td><td>Amps Custom</td><td class="center">1</td><td class="right">$0.00</td><td class="right">$0.00</td><td class="center">Yes</td></tr>
+          <tr><td>L08</td><td>Gasket</td><td>Motor Housing Assm</td><td>Amazon</td><td class="center">1</td><td class="right">$6.00</td><td class="right">$6.00</td><td class="center">Yes</td></tr>
+          <tr><td>L09</td><td>DRV8825 Motor Driver*</td><td>Electronics</td><td>Supply Closet</td><td class="center">1</td><td class="right">$3.00</td><td class="right">$3.00</td><td class="center">No</td></tr>
+
+          <tr><td colspan="8" class="bom-cat">🔩 Chassis Assembly — Structural</td></tr>
+          <tr><td>C01</td><td>15cm Standoffs</td><td>Structural Assm</td><td>Amazon</td><td class="center">1</td><td class="right">$15.48</td><td class="right">$15.48</td><td class="center">Yes</td></tr>
+          <tr><td>C02</td><td>Duron Sheet</td><td>Structural Assm</td><td>Amps Custom</td><td class="center">2</td><td class="right">$3.00</td><td class="right">$6.00</td><td class="center">Yes</td></tr>
+          <tr><td>C03</td><td>Ramp</td><td>Structural Assm</td><td>Amps Custom</td><td class="center">1</td><td class="right">$13.76</td><td class="right">$13.76</td><td class="center">Yes</td></tr>
+
+          <tr><td colspan="8" class="bom-cat">⚡ Chassis Assembly — Electronics</td></tr>
+          <tr><td>C04</td><td>Ultrasonic Sensor</td><td>Electronics</td><td>Amazon</td><td class="center">3</td><td class="right">$2.54</td><td class="right">$7.63</td><td class="center">Yes</td></tr>
+          <tr><td>C05</td><td>IMU</td><td>Electronics</td><td>Amazon</td><td class="center">1</td><td class="right">$10.45</td><td class="right">$10.45</td><td class="center">Yes</td></tr>
+          <tr><td>C06</td><td>Reflectance (Tape) Sensor*</td><td>Electronics</td><td>Supply Closet</td><td class="center">1</td><td class="right">$4.00</td><td class="right">$4.00</td><td class="center">No</td></tr>
+          <tr><td>C07</td><td>Arduino Mega</td><td>Electronics</td><td>Supply Closet</td><td class="center">1</td><td class="right">$25.00</td><td class="right">$25.00</td><td class="center">No</td></tr>
+          <tr><td>C08</td><td>Screw Terminals*</td><td>Electronics</td><td>Supply Closet</td><td class="center">3</td><td class="right">$0.75</td><td class="right">$2.25</td><td class="center">No</td></tr>
+          <tr><td>C09</td><td>Switches*</td><td>Electronics</td><td>Supply Closet</td><td class="center">2</td><td class="right">$0.50</td><td class="right">$1.00</td><td class="center">No</td></tr>
+
+          <tr><td colspan="8" class="bom-cat">🔧 Mobility Assembly — Wheel Assembly</td></tr>
+          <tr><td>M01</td><td>Mecanum Wheels, 2pcs</td><td>Wheel Assm</td><td>Amazon</td><td class="center">2</td><td class="right">$22.15</td><td class="right">$44.29</td><td class="center">Yes</td></tr>
+          <tr><td>M02</td><td>Shaft Coupling</td><td>Wheel Assm</td><td>Amazon</td><td class="center">2</td><td class="right">$9.26</td><td class="right">$18.52</td><td class="center">Yes</td></tr>
+          <tr><td>M03</td><td>D Shaft</td><td>Wheel Assm</td><td>Amazon</td><td class="center">2</td><td class="right">$10.90</td><td class="right">$21.80</td><td class="center">Yes</td></tr>
+          <tr><td>M04</td><td>5×10×4mm Bearing</td><td>Wheel Assm</td><td>Amazon</td><td class="center">1</td><td class="right">$7.63</td><td class="right">$7.63</td><td class="center">Yes</td></tr>
+          <tr><td>M05</td><td>Bearing Housing</td><td>Wheel Assm</td><td>Amps Custom</td><td class="center">1</td><td class="right">$0.00</td><td class="right">$0.00</td><td class="center">Yes</td></tr>
+          <tr><td>M06</td><td>Motor Housing</td><td>Wheel Assm</td><td>Amps Custom</td><td class="center">4</td><td class="right">$0.00</td><td class="right">$0.00</td><td class="center">Yes</td></tr>
+          <tr><td>M07</td><td>DC Motor + Encoder</td><td>Wheel Assm</td><td>Amazon</td><td class="center">2</td><td class="right">$44.38</td><td class="right">$88.76</td><td class="center">Yes</td></tr>
+          <tr><td>M08</td><td>L298 Motor Driver*</td><td>Electronics</td><td>Supply Closet</td><td class="center">1</td><td class="right">$2.00</td><td class="right">$2.00</td><td class="center">No</td></tr>
+          <tr class="tot"><td colspan="3"><strong>PURCHASED TOTAL</strong></td><td colspan="2">—</td><td class="right">—</td><td class="right"><strong>$265.29</strong></td><td class="center">—</td></tr>
+          <tr class="tot" style="background:var(--fg) !important;"><td colspan="3" style="color:#0c0c0c;"><strong>GRAND TOTAL</strong></td><td colspan="2" style="color:var(--accent);">—</td><td class="right" style="color:var(--accent);">—</td><td class="right" style="color:#0c0c0c;"><strong>$304.04</strong></td><td class="center" style="color:var(--accent);">—</td></tr>
+        </tbody>
+      </table>
+      <p class="bt" style="margin-top:1.25rem;font-size:.78rem;color:var(--muted);">* Approximate pricing. Items marked "Supply Closet" sourced from lab inventory. Custom parts manufactured at Amps lab at no direct material charge.</p>
+    </div>
+  </div>
+
+  <!-- REFLECTIONS -->
+  <div class="panel" id="reflections">
+    <div class="page-hero">
+      <p class="page-tag">05 — Reflections</p>
+      <h2 class="page-title">Project <em>Reflections</em></h2>
+      <p class="page-desc">An honest look back at the full arc of the project — what worked, what didn't, and what we'd tell next year's Introduction to Mechatronics teams.</p>
+    </div>
+    <div class="page-body">
+
+      <h3 class="sh">Process &amp; Milestones</h3>
+      <p class="bt">With three weeks from project release to competition day, scope decisions were made early and defended deliberately. The team organised features around a Product Nucleus — the irreducible set of capabilities the robot had to have to compete — and treated everything else as optional. The MVP was completed within the first two weeks, leaving the final week for integration testing, edge case handling, and performance tuning.</p>
+      <div class="g2" style="margin-bottom:2rem;">
+        <div class="cell" style="border-top:3px solid var(--accent);">
+          <div class="cell-lbl">MVP vs Feature List</div>
+          <div style="font-family:var(--mono);font-size:.9rem;font-weight:700;margin-bottom:.5rem;">Scope Management</div>
+          <p style="font-size:.86rem;color:#555;line-height:1.65;">The Product Nucleus centred on three non-negotiable capabilities: <strong>Mobility</strong> (forward, backward, and parallel shift), a reliable <strong>Launch Mechanism</strong> (stepper motor + puck loading device), and <strong>Navigation</strong> (ultrasonic wall-following and line detection for hog line sensing). Drive control and chassis/powertrain design were treated as features within mobility; everything else was evaluated against time and skill constraints before being committed to.</p>
+        </div>
+        <div class="cell" style="border-top:3px solid #0c0c0c;">
+          <div class="cell-lbl">Key Milestones</div>
+          <div style="font-family:var(--mono);font-size:.9rem;font-weight:700;margin-bottom:.5rem;">Timeline Highlights</div>
+          <p style="font-size:.86rem;color:#555;line-height:1.65;margin-bottom:.5rem;"><strong>Feb 14</strong> — Project released</p>
+          <p style="font-size:.86rem;color:#555;line-height:1.65;margin-bottom:.5rem;"><strong>Feb 17–23</strong> — Design finalised; mechanical prototypes iterated</p>
+          <p style="font-size:.86rem;color:#555;line-height:1.65;margin-bottom:.5rem;"><strong>Feb 24–27</strong> — All subsystems completed independently</p>
+          <p style="font-size:.86rem;color:#555;line-height:1.65;margin-bottom:.5rem;"><strong>Feb 28</strong> — Full system integration; first successful drive</p>
+          <p style="font-size:.86rem;color:#555;line-height:1.65;"><strong>Mar 1+</strong> — Testing, tuning, and hardening for competition</p>
+        </div>
+      </div>
+
+      <h3 class="sh">What Worked Well</h3>
+      <div class="reflect-card">
+        <div class="reflect-title"><span class="reflect-num">01</span> Integration Successes</div>
+        <p style="font-size:.88rem;color:#444;line-height:1.75;">One of the biggest wins on the software side was maintaining a clean, well-defined architecture from the start. Each subsystem — mobility, sensors, the state machine, the stepper launcher — lived in its own module with a clear public API. This separation meant that when something went wrong, we could isolate it quickly rather than hunting through tangled code. It also meant that bringing subsystems together for the first time was largely painless; most of the integrations worked on the first few tries with minimal debugging required.</p>
+        <p style="font-size:.88rem;color:#444;line-height:1.75;margin-top:.75rem;">On the control side, implementing PID for the drivetrain turned out to be essential rather than optional. The uneven weight distribution of the chassis — a real concern with a robot carrying a launcher and battery pack — would have caused significant straight-line drift without closed-loop speed control. The PID loops on each wheel compensated for motor-to-motor variation and chassis asymmetry, keeping the robot tracking straight and making our navigation reliable under real competition conditions.</p>
+      </div>
+      <div class="reflect-card">
+        <div class="reflect-title"><span class="reflect-num">02</span> Effective Design Decisions</div>
+        <p style="font-size:.88rem;color:#444;line-height:1.75;">A few mechanical decisions paid off significantly. Building proper motor housings with dedicated support structures meant the robot's weight was transferred to the chassis frame rather than bearing down on the motor shafts — a small detail that prevents premature wear and binding. We used deep groove ball bearings throughout, which handled radial loads well. In hindsight, tapered roller bearings would have been a stronger choice for the Mecanum wheel axles specifically, as they handle the axial (thrust) forces that Mecanum wheels generate during lateral movement more effectively. Similarly, keyed shaft joints instead of friction-fit connections would have made the drivetrain more mechanically robust under repeated loading.</p>
+        <p style="font-size:.88rem;color:#444;line-height:1.75;margin-top:.75rem;">Perhaps the single best process decision we made was designing the full electrical schematic in KiCad before touching a single wire. Having a complete, verified schematic meant that when we moved to physical wiring, everything went together correctly the first time. Debugging an electrical system without a reference schematic is painful — debugging one with a clean schematic is fast. This one habit saved us hours and is something we'd recommend unconditionally to future teams.</p>
+      </div>
+
+      <h3 class="sh" style="margin-top:2.5rem;">Integration Challenges</h3>
+      <div class="reflect-card">
+        <div class="reflect-title"><span class="reflect-num">03</span> Mechanical Vibration &amp; Fastener Loosening</div>
+        <p style="font-size:.88rem;color:#444;line-height:1.75;">Our most persistent mechanical challenge was motor vibration working fasteners loose over time. Despite careful assembly, screws in the chassis through-holes would begin to back out after two or three runs — even those tightened as firmly as possible — causing progressive misalignment and intermittent failures. The primary source was the stepper motor. To resolve it, we redesigned and reprinted the stepper motor housing and introduced a silicone gasket between the motor body and the chassis mounting surface. This dampening layer dramatically reduced vibration transmission through the frame and largely eliminated the fastener-loosening problem.</p>
+      </div>
+      <div class="reflect-card">
+        <div class="reflect-title"><span class="reflect-num">04</span> Sensor Timing &amp; Ultrasonic Crosstalk</div>
+        <p style="font-size:.88rem;color:#444;line-height:1.75;">During testing we found that the HC-SR04 ultrasonic sensors operated too slowly for the update rate our drivetrain control loop required, creating timing conflicts that disrupted motion commands. A second, more subtle problem appeared during turning: the pulse from one sensor would occasionally bounce off a surface and be received by the adjacent sensor, producing false distance readings. This caused a characteristic wheel jitter during wall-alignment as the control loop reacted to phantom obstacles. Switching to time-of-flight (ToF) distance sensors would resolve both issues — they operate at higher update rates and emit a much tighter beam, making inter-sensor crosstalk virtually impossible.</p>
+      </div>
+
+      <h3 class="sh" style="margin-top:2.5rem;">Advice for Next Year's Introduction to Mechatronics Teams</h3>
+      <div style="background:var(--accent);padding:2rem 2rem;border:1px solid var(--border);margin-bottom:1.5rem;">
+        <p style="font-family:var(--mono);font-size:.78rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;margin-bottom:.75rem;">Key Takeaways</p>
+        <ul style="font-size:.9rem;color:#0c0c0c;line-height:1.8;padding-left:1.25rem;display:flex;flex-direction:column;gap:.75rem;">
+          <li><strong>Choose your sensors carefully.</strong> Sensor type matters more than count. The HC-SR04s were too slow for our control loop and their wide beam caused crosstalk between units during turns. Check update rate and beam geometry before committing.</li>
+          <li><strong>Draw your full schematic before touching a wire.</strong> A verified schematic in KiCad meant our wiring went together correctly the first time. Tracing a fault on paper takes minutes — tracing it through unlabelled wires takes hours.</li>
+          <li><strong>Build and test subsystems in isolation, then integrate.</strong> Completing each subsystem independently meant integration day was straightforward rather than chaotic. When you integrate tested modules, bugs only appear at the boundaries — a much smaller space to search.</li>
+        </ul>
+      </div>
+      <div class="reflect-card">
+        <div class="reflect-title"><span class="reflect-num">05</span> Final Reflections</div>
+        <p style="font-size:.88rem;color:#444;line-height:1.75;">We had a great time working on this project and are proud of CURL-E! The process was challenging and involved a lot of non-linear progress, but our robot ultimately demonstrated reliable performance — at least until the very end.</p>
+        <p style="font-size:.88rem;color:#444;line-height:1.75;margin-top:.75rem;">Right before the curling competition, the robot started acting unpredictably. After extensive testing and reconfiguration throughout the quarter, it seems the system had simply been pushed to its limits. Without any intentional mechanical or software changes, one of the Mecanum wheels suddenly began spinning uncontrollably. We believe the encoder connection was damaged, which caused the control system to drive the motor at maximum PWM (255/255). As a result, the robot could no longer move in a straight line and was effectively out of the competition.</p>
+        <p style="font-size:.88rem;color:#444;line-height:1.75;margin-top:.75rem;">Although we made it to the quarterfinals, the robot eventually failed and was unable to score pucks due to this encoder issue. This was disappointing for the whole team because we knew the true potential of CURL-E.</p>
+        <p style="font-size:.88rem;color:#444;line-height:1.75;margin-top:.75rem;">Our final piece of advice to future teams is to understand and respect your robot's limits. These scrappy machines experience significant bending, vibration, dynamic loading, and wire fatigue every time you test them. Reliability becomes just as important as functionality. Keep that in mind as you iterate and especially as you approach competition day.</p>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- TEAM -->
+  <div class="panel" id="team">
+    <div class="page-hero">
+      <p class="page-tag">05 — Team</p>
+      <h2 class="page-title">The People Behind <em>CURL-E</em></h2>
+      <p class="page-desc">Four mechanical engineering students who built the DROID together in just <strong>15 days</strong>.</p>
+    </div>
+    <div class="page-body">
+      <div class="team-grid">
+        <div class="tc">
+          <div class="t-av">AZ</div>
+          <div>
+            <div class="t-name">Alan (Shixuan) Zhao</div>
+            <span class="t-role">Mechanical Engineering</span>
+          </div>
+        </div>
+        <div class="tc">
+          <div class="t-av">SL</div>
+          <div>
+            <div class="t-name">Serena (Yuhan) Liu</div>
+            <span class="t-role">Mechanical Engineering</span>
+          </div>
+        </div>
+        <div class="tc">
+          <div class="t-av">PC</div>
+          <div>
+            <div class="t-name">Po-Yun Cheng</div>
+            <span class="t-role">Mechanical Engineering</span>
+          </div>
+        </div>
+        <div class="tc">
+          <div class="t-av">JR</div>
+          <div>
+            <div class="t-name">James Ringsby</div>
+            <span class="t-role">Mechanical Engineering</span>
+          </div>
+        </div>
+      </div>
+
+      <h3 class="sh" style="margin-top:2.5rem;">Team Photo</h3>
+      <div style="width:100%;border:1px solid var(--border);overflow:hidden;">
+        <img src="assets/team-photo.jpg" style="width:100%;height:100%;object-fit:cover;display:block;">
+      </div>
+    </div>
+    <footer><span>MECHA-X1 Mechatronics Project © 2025</span><span>Built with precision.</span></footer>
+  </div>
+
+</div>
+
+<script>
+  function switchTab(id) {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === id));
+    document.querySelectorAll('.panel').forEach(p => p.classList.toggle('active', p.id === id));
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+  document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+  });
+
+  // ── TYPEWRITER EFFECT ─────────────────────────────────────────────
+  (function() {
+    const segments = [
+      { text: 'BOTSPIEL', highlight: false, br: true  },
+      { text: 'DROID',    highlight: false, br: true  },
+      { text: 'CURL-E',   highlight: true,  br: false },
+    ];
+
+    const el = document.getElementById('heroTitle');
+    const CHAR_DELAY = 75;
+    const SEG_PAUSE  = 180;
+    const CURSOR = '<span id="tw-cursor" style="display:inline-block;width:.55em;height:.85em;background:var(--fg);margin-left:.08em;vertical-align:middle;animation:twBlink .7s step-end infinite;"></span>';
+
+    const st = document.createElement('style');
+    st.textContent = '@keyframes twBlink{0%,100%{opacity:1}50%{opacity:0}}';
+    document.head.appendChild(st);
+
+    let segIdx = 0, charIdx = 0, built = '';
+
+    function render(currentSegText) {
+      let html = built;
+      const seg = segments[segIdx];
+      if (seg) {
+        html += seg.highlight
+          ? '<span class="hlt">' + currentSegText + '</span>'
+          : currentSegText;
+      }
+      el.innerHTML = html + CURSOR;
+    }
+
+    function type() {
+      if (segIdx >= segments.length) {
+        setTimeout(() => { const c = document.getElementById('tw-cursor'); if (c) c.remove(); }, 900);
+        return;
+      }
+      const seg = segments[segIdx];
+      if (charIdx <= seg.text.length) {
+        render(seg.text.slice(0, charIdx));
+        charIdx++;
+        setTimeout(type, CHAR_DELAY);
+      } else {
+        built += seg.highlight
+          ? '<span class="hlt">' + seg.text + '</span>' + (seg.br ? '<br/>' : '')
+          : seg.text + (seg.br ? '<br/>' : '');
+        segIdx++; charIdx = 0;
+        setTimeout(type, SEG_PAUSE);
+      }
+    }
+
+    el.style.visibility = 'visible';
+    setTimeout(type, 300);
+  })();
+
+  // ── CODE VIEWER DATA ──────────────────────────────────────────────
+  const cvFolders = {
+    src: {
+      color: '#5551FF',
+      files: { 'main.cpp': ["#include \"Arduino.h\"","#include \"line_sensor.h\"","#include \"mobility_driver.h\"","#include \"state_machine.h\"","#include \"stepper_motor.h\"","#include \"uss.h\"","#include \"config.h\"","","void setup() {","  Serial.begin(SERIAL_BAUD);","  Mobility_Init();","  initUss();","  initLineSensor();","  initStepperMotor();","  initStateMachine();","}","","void loop() {","  Mobility_Update();","  updateStateMachine();}",""] }
+    },
+    include: {
+      color: '#00cc44',
+      files: {
+        'pin_map.h': ["/**"," * @file pin_map.h"," * @brief Centralized pin map for the entire Introduction to Mechatronics Final Project"," * (Arduino Mega 2560)"," *"," * Every subsystem's GPIO assignments live here so that pin conflicts"," * are easy to spot and resolve.  All modules should #include this"," * file instead of hard-coding pin numbers."," */","","#ifndef PIN_MAP_H","#define PIN_MAP_H","","#include <Arduino.h>","","/* ===================================================================","  MOBILITY — 4× DC Motor + Encoder + E-Stop","=================================================================== */","#define MOB_NUM_MOTORS          4","#define MOB_DRIVER_1_IN1        22","#define MOB_DRIVER_1_IN2        23","#define MOB_DRIVER_2_IN1        24","#define MOB_DRIVER_2_IN2        25","#define MOB_DRIVER_3_IN1        26","#define MOB_DRIVER_3_IN2        27","#define MOB_DRIVER_4_IN1        28","#define MOB_DRIVER_4_IN2        29","#define MOB_DRIVER_1_ENA        4","#define MOB_DRIVER_2_ENA        5","#define MOB_DRIVER_3_ENA        6","#define MOB_DRIVER_4_ENA        7","#define MOB_MOTOR_1_ENCA        18","#define MOB_MOTOR_2_ENCA        19","#define MOB_MOTOR_3_ENCA        20","#define MOB_MOTOR_4_ENCA        21","#define MOB_MOTOR_1_ENCB        30","#define MOB_MOTOR_2_ENCB        31","#define MOB_MOTOR_3_ENCB        32","#define MOB_MOTOR_4_ENCB        33","#define MOB_ESTOP_PIN           42","","/* ===================================================================","  ULTRASONIC SENSORS — 3× HC-SR04","=================================================================== */","#define USS_FRONT_TRIG          36","#define USS_FRONT_ECHO          37","#define USS_LEFT_REAR_TRIG      38","#define USS_LEFT_REAR_ECHO      39","#define USS_LEFT_FRONT_TRIG     40","#define USS_LEFT_FRONT_ECHO     41","","/* ===================================================================","  LINE SENSOR — 5-channel IR reflectance","=================================================================== */","#define IR_PIN_LEFT             A1","#define IR_PIN_LEFT2            A2","#define IR_PIN_MIDDLE           A3","#define IR_PIN_RIGHT2           A4","#define IR_PIN_RIGHT            A5","","/* ===================================================================","  STEPPER MOTOR","=================================================================== */","#define STEPPER_STEP_PIN        34","#define STEPPER_DIR_PIN         35","#define STEPPER_ENABLE_PIN      53","","#endif  /* PIN_MAP_H */"],
+        'config.h': ["/**"," * @file config.h"," * @brief Project-level tuning parameters"," */","","#ifndef CONFIG_H","#define CONFIG_H","","/* Serial / Debug */","#define SERIAL_BAUD             115200","#define MOB_DEBUG_PRINT         0","#define MOB_DEBUG_INTERVAL_MS   100","","/* Mobility — PID Gains */","#define MOB_PID_KP              12.0f","#define MOB_PID_KI              35.0f","#define MOB_PID_KD              0.0f","#define MOB_PID_INTERVAL_MS     20","","/* Mobility — PWM Configuration */","#define MOB_PWM_MAX             255","#define MOB_PWM_DEADZONE        60","","/* State Machine — Timing */","#define FSM_LOAD_IDLE_MS        5000UL","#define FSM_STATE_TIMEOUT_MS    70000UL","#define FSM_PARALLEL_TOLERANCE_CM  0.4f","","#endif  /* CONFIG_H */"]
+      }
+    },
+    lib: {
+      color: '#FF9800',
+      files: {
+        'state_machine.h': ["#pragma once","","#include <Arduino.h>","","// Initialize state machine runtime.","void initStateMachine();","","// Run one non-blocking FSM update (call every loop).","void updateStateMachine();"],
+        'mobility_driver.h': ["/**"," * @file mobility_driver.h"," * @brief Public API for 4-wheel Mecanum mobility system"," *"," * Features:"," * - Mecanum inverse kinematics (forward/strafe/rotate)"," * - PI speed control with anti-windup"," * - Deadzone compensation"," * - Low-pass filter on measured RPM"," * - E-Stop input: immediate shutdown"," * - Safety brake on direction reversal"," */","","#ifndef MOBILITY_DRIVER_H","#define MOBILITY_DRIVER_H","","#include <Arduino.h>","#include \"pin_map.h\"","#include \"mobility_config.h\"","","void Mobility_Drive(float vx, float vy, float rotation);","void Mobility_MoveForward(float rpm);","void Mobility_MoveBackward(float rpm);","void Mobility_StrafeLeft(float rpm);","void Mobility_StrafeRight(float rpm);","void Mobility_RotateCCW(float rpm);","void Mobility_RotateCW(float rpm);","","#endif /* MOBILITY_DRIVER_H */"],
+        'stepper_motor.h': ["#pragma once","","#include <Arduino.h>","#include \"stepper_config.h\"","","// Initialize stepper GPIO pins and hardware timer.","void initStepperMotor();","","// Start one launch cycle.","void startStepperLaunchCycle(bool clockwise = true, uint16_t steps = STEPPER_LAUNCH_STEPS);","","// No-op — stepping handled by Timer3 ISR.","void updateStepperMotor();","","// True while a launch cycle is running.","bool isStepperMotorBusy();","","// Returns true once when launch cycle finishes.","bool checkStepperLaunchCycleComplete();","","// Immediate stop.","void stopStepperMotor();"],
+        'uss.h': ["#pragma once","","#include <Arduino.h>","#include \"uss_config.h\"","","void initUss();","void updateLeftUss(unsigned long timeout_us = USS_LEFT_PULSE_TIMEOUT_DEFAULT_US);","void updateFrontUss();","","float ussLeftFrontCm();","float ussLeftRearCm();","float ussFrontCm();","","bool ussLeftFrontTriggered();","bool ussLeftRearTriggered();","bool ussFrontTriggered();"],
+        'line_sensor.h': ["#pragma once","","#include <Arduino.h>","","void initLineSensor();","void updateLineSensor();","uint8_t lineMask5b();","bool isAllBlack();","bool isCentered();"]
+      }
+    },
+    root: {
+      color: '#FF2A5F',
+      files: {
+        'README.md': ["# Introduction to Mechatronics Final Project","Winter 2026 BOTspiel","","## Overview","Autonomous curling robot CURL-E built for the BOTspiel competition.","","## Build","1. Open in PlatformIO","2. `pio run --target upload`","","## Repository Structure","- src/       — main.cpp","- include/   — pin_map.h, config.h","- lib/       — all subsystem drivers"]
+      }
+    }
+  };
+
+  let cvCurrentFolder = null;
+
+  function openCodeViewer(folderName) {
+    cvCurrentFolder = folderName;
+    const folder = cvFolders[folderName];
+    const fileNames = Object.keys(folder.files);
+
+    // Build title
+    document.getElementById('cvModalTitle').textContent = `CODE VIEWER — /${folderName}`;
+
+    // Build file tabs
+    const tabsEl = document.getElementById('cvFileTabs');
+    tabsEl.innerHTML = fileNames.map((f, i) =>
+      `<button class="cv-file-tab${i===0?' active':''}" onclick="cvSwitchFile('${f}',this)">${f}</button>`
+    ).join('');
+
+    // Render first file
+    cvRenderCode(fileNames[0]);
+
+    // Open overlay
+    document.getElementById('cvOverlay').classList.add('open');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closeCodeViewer() {
+    document.getElementById('cvOverlay').classList.remove('open');
+    document.body.style.overflow = '';
+  }
+
+  function closeCVIfOutside(e) {
+    if (e.target === document.getElementById('cvOverlay')) closeCodeViewer();
+  }
+
+  function cvRenderCode(filename) {
+    const container = document.getElementById('cvCodeContainer');
+    container.style.opacity = 0;
+    setTimeout(() => {
+      container.innerHTML = '';
+      const lines = cvFolders[cvCurrentFolder].files[filename] || [];
+      lines.forEach((lineText, i) => {
+        const div = document.createElement('div');
+        div.className = 'cv-code-line';
+        const num = document.createElement('span');
+        num.className = 'cv-line-num';
+        num.textContent = i + 1;
+        const txt = document.createElement('span');
+        txt.innerHTML = lineText.replace(/ /g, '&nbsp;');
+        div.appendChild(num);
+        div.appendChild(txt);
+        container.appendChild(div);
+      });
+      void container.offsetWidth;
+      container.style.opacity = 1;
+    }, 180);
+  }
+
+  function cvSwitchFile(filename, el) {
+    document.querySelectorAll('.cv-file-tab').forEach(e => e.classList.remove('active'));
+    el.classList.add('active');
+    cvRenderCode(filename);
+  }
+
+  // Close modal with Escape key
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeCodeViewer(); });
+
+  // ── PIN MAP SVG ──────────────────────────────────────────────────
+  (function renderPinMap() {
+    const svg = document.getElementById('pinMapSvg');
+    if (!svg) return;
+
+    const ns = 'http://www.w3.org/2000/svg';
+    function el(tag, attrs, text) {
+      const e = document.createElementNS(ns, tag);
+      for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v);
+      if (text !== undefined) e.textContent = text;
+      return e;
+    }
+
+    // Board geometry
+    const BX = 22, BY = 80, BW = 776, BH = 130;
+
+    // Pin color map (digital pin number -> color)
+    const dColors = {
+      4:'#f97316', 5:'#f97316', 6:'#f97316', 7:'#f97316',
+      18:'#8b5cf6', 19:'#8b5cf6', 20:'#8b5cf6', 21:'#8b5cf6',
+      22:'#3b82f6', 23:'#3b82f6', 24:'#3b82f6', 25:'#3b82f6',
+      26:'#3b82f6', 27:'#3b82f6', 28:'#3b82f6', 29:'#3b82f6',
+      30:'#818cf8', 31:'#818cf8', 32:'#818cf8', 33:'#818cf8',
+      34:'#f59e0b', 35:'#f59e0b',
+      36:'#06b6d4', 37:'#06b6d4', 38:'#06b6d4', 39:'#06b6d4', 40:'#06b6d4', 41:'#06b6d4',
+      42:'#ef4444',
+      53:'#f59e0b',
+    };
+    // Analog pin color map (index 0=A0 ..15=A15)
+    const aColors = { 1:'#22c55e', 2:'#22c55e', 3:'#22c55e', 4:'#22c55e', 5:'#22c55e' };
+
+    // Board PCB body
+    svg.appendChild(el('rect', { x: BX, y: BY, width: BW, height: BH, rx: 5, fill: '#1a2d1a', stroke: '#2a4a2a', 'stroke-width': 2 }));
+    // Subtle board label
+    svg.appendChild(el('text', { x: BX + BW/2, y: BY + BH/2 + 8, 'text-anchor': 'middle', fill: '#1f3a1f', 'font-size': 20, 'font-weight': 700, 'font-family': 'Space Mono,monospace', 'letter-spacing': 8 }, 'ARDUINO MEGA 2560'));
+
+    // USB connector on left
+    svg.appendChild(el('rect', { x: BX - 18, y: BY + BH/2 - 14, width: 20, height: 28, rx: 3, fill: '#777', stroke: '#555', 'stroke-width': 1 }));
+    svg.appendChild(el('rect', { x: BX - 14, y: BY + BH/2 - 9, width: 12, height: 18, rx: 1, fill: '#444' }));
+
+    // ── DIGITAL PINS (top edge, D0-D53) ──
+    const numD = 54;
+    const dSpacing = BW / numD;
+    for (let i = 0; i < numD; i++) {
+      const x = BX + dSpacing * i + dSpacing / 2;
+      const color = dColors[i] || '#2d5a2d';
+      const r = dColors[i] ? 6 : 4;
+      const stemY = BY - 14;
+      // Stem line
+      svg.appendChild(el('line', { x1: x, y1: BY, x2: x, y2: stemY, stroke: color, 'stroke-width': dColors[i] ? 1.5 : 1 }));
+      // Pin circle
+      svg.appendChild(el('circle', { cx: x, cy: stemY - r, r, fill: color, stroke: dColors[i] ? color : '#2a4a2a', 'stroke-width': 1 }));
+      // Label for used pins
+      if (dColors[i]) {
+        svg.appendChild(el('text', { x, y: stemY - r * 2 - 3, 'text-anchor': 'middle', fill: color, 'font-size': 7, 'font-family': 'Space Mono,monospace', 'font-weight': 700 }, `D${i}`));
+      }
+    }
+
+    // ── ANALOG PINS (bottom edge, A0-A15) ──
+    const numA = 16;
+    const aSpacing = BW / numA;
+    for (let i = 0; i < numA; i++) {
+      const x = BX + aSpacing * i + aSpacing / 2;
+      const color = aColors[i] || '#2d5a2d';
+      const r = aColors[i] ? 6 : 4;
+      const stemY = BY + BH + 14;
+      svg.appendChild(el('line', { x1: x, y1: BY + BH, x2: x, y2: stemY, stroke: color, 'stroke-width': aColors[i] ? 1.5 : 1 }));
+      svg.appendChild(el('circle', { cx: x, cy: stemY + r, r, fill: color, stroke: aColors[i] ? color : '#2a4a2a', 'stroke-width': 1 }));
+      if (aColors[i]) {
+        svg.appendChild(el('text', { x, y: stemY + r * 2 + 10, 'text-anchor': 'middle', fill: color, 'font-size': 7, 'font-family': 'Space Mono,monospace', 'font-weight': 700 }, `A${i}`));
+      }
+    }
+
+    // ── GROUP BRACKETS (above digital pin row) ──
+    const groups = [
+      { s:4,  e:7,  color:'#f97316', lbl:'PWM' },
+      { s:18, e:21, color:'#8b5cf6', lbl:'INT 2-5' },
+      { s:22, e:29, color:'#3b82f6', lbl:'MOT DIR' },
+      { s:30, e:33, color:'#818cf8', lbl:'ENC B' },
+      { s:34, e:35, color:'#f59e0b', lbl:'STEP/DIR' },
+      { s:36, e:41, color:'#06b6d4', lbl:'ULTRASONIC' },
+      { s:42, e:42, color:'#ef4444', lbl:'STOP' },
+      { s:53, e:53, color:'#f59e0b', lbl:'EN' },
+    ];
+
+    for (const g of groups) {
+      const x1 = BX + dSpacing * g.s + dSpacing / 2 - 3;
+      const x2 = BX + dSpacing * g.e + dSpacing / 2 + 3;
+      const bracketY = BY - 44;
+      svg.appendChild(el('line', { x1, y1: bracketY, x2, y2: bracketY, stroke: g.color, 'stroke-width': 1.5 }));
+      svg.appendChild(el('line', { x1, y1: bracketY, x2: x1, y2: bracketY + 8, stroke: g.color, 'stroke-width': 1.5 }));
+      svg.appendChild(el('line', { x1: x2, y1: bracketY, x2, y2: bracketY + 8, stroke: g.color, 'stroke-width': 1.5 }));
+      svg.appendChild(el('text', { x: (x1+x2)/2, y: bracketY - 3, 'text-anchor': 'middle', fill: g.color, 'font-size': 7.5, 'font-family': 'Space Mono,monospace', 'font-weight': 700, 'letter-spacing': 1 }, g.lbl));
+    }
+
+    // ── Axis labels ──
+    svg.appendChild(el('text', { x: BX + BW + 6, y: BY - 16, fill: '#4a7a4a', 'font-size': 7.5, 'font-family': 'Space Mono,monospace', 'letter-spacing': 1 }, 'DIGITAL I/O (D0–D53)'));
+    svg.appendChild(el('text', { x: BX + BW + 6, y: BY + BH + 20, fill: '#4a7a4a', 'font-size': 7.5, 'font-family': 'Space Mono,monospace', 'letter-spacing': 1 }, 'ANALOG IN (A0–A15)'));
+  })();
+</script>
+</body>
+</html>

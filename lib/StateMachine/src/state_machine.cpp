@@ -61,6 +61,43 @@ struct SensorFrame {
   bool    recover_commanded     = false;
 };
 
+/* ── Encoder helpers (4-motor averaging for mecanum kinematics) ──── */
+
+struct EncoderSnapshot {
+  long fl = 0, fr = 0, bl = 0, br = 0;
+};
+
+EncoderSnapshot captureEncoders() {
+  EncoderSnapshot s;
+  s.fl = Mobility_GetEncoderCount(MOB_FL);
+  s.fr = Mobility_GetEncoderCount(MOB_FR);
+  s.bl = Mobility_GetEncoderCount(MOB_BL);
+  s.br = Mobility_GetEncoderCount(MOB_BR);
+  return s;
+}
+
+/**
+ * Pure forward encoder delta — cancels strafe & rotation components.
+ * Uses motor inversions {-1,+1,-1,+1}: fwd = (d_FR + d_BR - d_FL - d_BL) / 4
+ */
+long forwardEncoderDelta(const EncoderSnapshot& s) {
+  return ( (Mobility_GetEncoderCount(MOB_FR) - s.fr)
+         + (Mobility_GetEncoderCount(MOB_BR) - s.br)
+         - (Mobility_GetEncoderCount(MOB_FL) - s.fl)
+         - (Mobility_GetEncoderCount(MOB_BL) - s.bl) ) / 4;
+}
+
+/**
+ * Pure strafe encoder delta — cancels forward & rotation components.
+ * strafe = (d_FL + d_FR - d_BL - d_BR) / 4
+ */
+long strafeEncoderDelta(const EncoderSnapshot& s) {
+  return ( (Mobility_GetEncoderCount(MOB_FL) - s.fl)
+         + (Mobility_GetEncoderCount(MOB_FR) - s.fr)
+         - (Mobility_GetEncoderCount(MOB_BL) - s.bl)
+         - (Mobility_GetEncoderCount(MOB_BR) - s.br) ) / 4;
+}
+
 /* ── Runtime state ───────────────────────────────────────────────── */
 
 struct Runtime {
@@ -87,14 +124,14 @@ struct Runtime {
   // Set after first alignment — skip PRE_ALIGN/TURN_ALIGN on later cycles.
   bool has_aligned               = false;
 
-  // Speed-up phase: encoder snapshot at state entry.
-  long fwd_start_encoder         = 0L;
-  long ret_start_encoder         = 0L;
+  // Speed-up phase: 4-motor encoder snapshots at state entry.
+  EncoderSnapshot fwd_start_enc{};
+  EncoderSnapshot ret_start_enc{};
 
   // MOVE_FORWARD_TO_HOG_LINE sub-state tracking.
-  uint8_t        hogline_cycle         = 0;
-  FwdHogSubState fwd_hog_sub           = FwdHogSubState::SPEEDUP;
-  long           lateral_start_encoder = 0L;
+  uint8_t         hogline_cycle    = 0;
+  FwdHogSubState  fwd_hog_sub     = FwdHogSubState::SPEEDUP;
+  EncoderSnapshot lateral_start_enc{};
 };
 
 Runtime g_rt{};
@@ -155,8 +192,8 @@ void setState(RobotState next, unsigned long now_ms) {
   g_rt.last_aligned_check_ms   = now_ms;
 
   if (next == RobotState::MOVE_FORWARD_TO_HOG_LINE) {
-    g_rt.fwd_start_encoder = Mobility_GetEncoderCount(MOB_FL);
-    g_rt.fwd_hog_sub       = FwdHogSubState::SPEEDUP;
+    g_rt.fwd_start_enc = captureEncoders();
+    g_rt.fwd_hog_sub   = FwdHogSubState::SPEEDUP;
     g_rt.hogline_cycle++;
   }
   if (next == RobotState::RETURN_TO_END_ZONE) {
@@ -164,7 +201,7 @@ void setState(RobotState next, unsigned long now_ms) {
     g_rt.sub_enter_ms = now_ms;
     g_rt.return_line_consec = 0;
     g_rt.return_last_line_check_ms = now_ms;
-    g_rt.ret_start_encoder = Mobility_GetEncoderCount(MOB_FL);
+    g_rt.ret_start_enc = captureEncoders();
   }
   if (next == RobotState::LAUNCH) {
     g_rt.launch_started = false;
@@ -350,8 +387,8 @@ void handleShiftRightToCenterLine(const SensorFrame& in, unsigned long now_ms) {
 void handleMoveForwardToHogLine(const SensorFrame& in, unsigned long now_ms) {
   stopStepperMotor();
 
-  // Hog line = all 5 sensors see black → transition regardless of sub-state.
-  if (in.line_mask_5b == 0b11111) {
+  // Hog line = all 5 sensors (or 4 rightmost) see black → transition regardless of sub-state.
+  if (in.line_mask_5b == 0b11111 || in.line_mask_5b == 0b01111) {
     Mobility_StopAll();
     setState(RobotState::LAUNCH, now_ms);
     return;
@@ -361,13 +398,13 @@ void handleMoveForwardToHogLine(const SensorFrame& in, unsigned long now_ms) {
 
     /* ── SPEEDUP: high-speed forward for FSM_SPEEDUP_DISTANCE_CM ── */
     case FwdHogSubState::SPEEDUP: {
-      const long enc_traveled = labs(Mobility_GetEncoderCount(MOB_FL) - g_rt.fwd_start_encoder);
+      const long enc_traveled = labs(forwardEncoderDelta(g_rt.fwd_start_enc));
       if (enc_traveled >= FSM_SPEEDUP_ENCODER_COUNTS) {
         Mobility_StopAll();
         // Cycle 2 → shift left, cycle 3 → shift right, otherwise skip.
         if (g_rt.hogline_cycle == 2 || g_rt.hogline_cycle == 3) {
           g_rt.fwd_hog_sub = FwdHogSubState::LATERAL_SHIFT;
-          g_rt.lateral_start_encoder = Mobility_GetEncoderCount(MOB_FL);
+          g_rt.lateral_start_enc = captureEncoders();
         } else {
           g_rt.fwd_hog_sub = FwdHogSubState::LINE_FOLLOW;
         }
@@ -382,7 +419,7 @@ void handleMoveForwardToHogLine(const SensorFrame& in, unsigned long now_ms) {
 
     /* ── LATERAL_SHIFT: strafe left (cycle 2) or right (cycle 3) ── */
     case FwdHogSubState::LATERAL_SHIFT: {
-      const long lat_traveled = labs(Mobility_GetEncoderCount(MOB_FL) - g_rt.lateral_start_encoder);
+      const long lat_traveled = labs(strafeEncoderDelta(g_rt.lateral_start_enc));
       if (lat_traveled >= FSM_LATERAL_SHIFT_ENCODER_COUNTS) {
         Mobility_StopAll();
         g_rt.fwd_hog_sub = FwdHogSubState::LINE_FOLLOW;
@@ -442,7 +479,7 @@ void handleReturnToEndZone(const SensorFrame& in, unsigned long now_ms) {
 
     /* ── BACKWARD_SPEEDUP: fast backward for FSM_SPEEDUP_DISTANCE_CM ── */
     case ReturnSubState::BACKWARD_SPEEDUP: {
-      const long ret_traveled = labs(Mobility_GetEncoderCount(MOB_FL) - g_rt.ret_start_encoder);
+      const long ret_traveled = labs(forwardEncoderDelta(g_rt.ret_start_enc));
       if (ret_traveled >= FSM_SPEEDUP_ENCODER_COUNTS) {
         Mobility_StopAll();
         // Cycle 2/3 shifted laterally → recenter before continuing.
